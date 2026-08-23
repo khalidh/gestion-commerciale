@@ -1,0 +1,22 @@
+[
+  {
+    "invoice_id": 1,
+    "invoice_number": "INV-001",
+    "sales_order_id": 1,
+    "customer_name": "Acme SA",
+    "total_amount": 2500.0,
+    "paid_amount": 2500.0,
+    "remaining_amount": 0.0,
+    "invoice_status": "PAID"
+  },
+  {
+    "invoice_id": 2,
+    "invoice_number": "INV-002",
+    "sales_order_id": 3,
+    "customer_name": "Acme SA",
+    "total_amount": 320.0,
+    "paid_amount": 320.0,
+    "remaining_amount": 0.0,
+    "invoice_status": "PAID"
+  }
+]

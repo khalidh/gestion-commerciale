@@ -1,0 +1,26 @@
+[
+  {
+    "product_id": 2,
+    "product_code": "PROD-002",
+    "product_name": "Abonnement Pro",
+    "unit_price": 320.0,
+    "currency_code": "EUR",
+    "status": "ACTIVE"
+  },
+  {
+    "product_id": 3,
+    "product_code": "PROD-003",
+    "product_name": "Formation Enterprise",
+    "unit_price": 950.0,
+    "currency_code": "EUR",
+    "status": "ACTIVE"
+  },
+  {
+    "product_id": 1,
+    "product_code": "PROD-001",
+    "product_name": "Pack Premium",
+    "unit_price": 1250.0,
+    "currency_code": "EUR",
+    "status": "ACTIVE"
+  }
+]

@@ -1,0 +1,29 @@
+[
+  {
+    "customer_id": 1,
+    "customer_code": "CUST-001",
+    "customer_name": "Acme SA",
+    "customer_type": "CUSTOMER",
+    "email": "contact@acme.fr",
+    "phone": "+33 1 00 00 00 01",
+    "status": "ACTIVE"
+  },
+  {
+    "customer_id": 2,
+    "customer_code": "CUST-002",
+    "customer_name": "Globex",
+    "customer_type": "CUSTOMER",
+    "email": "sales@globex.com",
+    "phone": "+33 1 00 00 00 02",
+    "status": "ACTIVE"
+  },
+  {
+    "customer_id": 3,
+    "customer_code": "CUST-003",
+    "customer_name": "Phase 3 Test",
+    "customer_type": "CUSTOMER",
+    "email": "phase3@example.com",
+    "phone": null,
+    "status": "ACTIVE"
+  }
+]

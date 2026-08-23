@@ -1,0 +1,26 @@
+name: ci
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify repository structure
+        run: |
+          test -f README.md
+          test -d docs
+          test -d sql
+          test -d apex
+          test -d ai
+          echo "Repository structure verified"
+
+      - name: Summarize release assets
+        run: |
+          find . -maxdepth 3 -type f | sort

@@ -1,0 +1,26 @@
+{
+  "customers": [
+    {"id": 1, "name": "Acme SA", "contact": "Jean Martin", "status": "ACTIVE"},
+    {"id": 2, "name": "Globex", "contact": "Sophie Dubois", "status": "ACTIVE"},
+    {"id": 3, "name": "Initech", "contact": "Paul Durand", "status": "INACTIVE"}
+  ],
+  "products": [
+    {"id": 1, "name": "Pack Premium", "price": 1250, "status": "ACTIVE"},
+    {"id": 2, "name": "Abonnement Pro", "price": 320, "status": "ACTIVE"},
+    {"id": 3, "name": "Formation Enterprise", "price": 950, "status": "ACTIVE"}
+  ],
+  "orders": [
+    {"id": 1, "customerId": 1, "productId": 1, "quantity": 2, "amount": 2500, "status": "VALIDATED"},
+    {"id": 2, "customerId": 2, "productId": 2, "quantity": 5, "amount": 1600, "status": "DRAFT"}
+  ],
+  "invoices": [
+    {"id": 1, "orderId": 1, "number": "INV-001", "amount": 2500, "status": "PAID"}
+  ],
+  "payments": [
+    {"id": 1, "invoiceId": 1, "amount": 2500, "method": "Virement"}
+  ],
+  "auditLog": [
+    {"id": 1, "module": "INVOICE", "action": "GENERATE", "detail": "Facture initiale INV-001", "date": "2026-08-23"},
+    {"id": 2, "module": "PAYMENT", "action": "REGISTER", "detail": "Paiement initial INV-001", "date": "2026-08-23"}
+  ]
+}

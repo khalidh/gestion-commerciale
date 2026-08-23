@@ -1,0 +1,56 @@
+{
+  "application": {
+    "name": "Gestion Commerciale",
+    "workspace": "DEV",
+    "authentication": "No Authentication",
+    "theme": "Universal Theme",
+    "pages": [
+      {
+        "id": 100,
+        "name": "Home Dashboard",
+        "type": "Dashboard",
+        "components": ["Cards", "Charts", "List of Recent Orders"]
+      },
+      {
+        "id": 101,
+        "name": "Customers",
+        "type": "CRUD",
+        "components": ["Interactive Grid", "Form", "Filter"]
+      },
+      {
+        "id": 102,
+        "name": "Products",
+        "type": "CRUD",
+        "components": ["Interactive Grid", "Form", "Price Field"]
+      },
+      {
+        "id": 103,
+        "name": "Orders",
+        "type": "Transactional",
+        "components": ["Master Detail", "Validation Process"]
+      },
+      {
+        "id": 104,
+        "name": "Invoices",
+        "type": "Transactional",
+        "components": ["Report", "Generate Invoice Process"]
+      },
+      {
+        "id": 105,
+        "name": "Payments",
+        "type": "Transactional",
+        "components": ["Report", "Payment Form"]
+      },
+      {
+        "id": 106,
+        "name": "Reports",
+        "type": "Reporting",
+        "components": ["Chart", "Pivot", "Export"]
+      }
+    ]
+  },
+  "notes": [
+    "This template is a structural APEX export blueprint.",
+    "It can be converted into an APEX import package or used as a design reference."
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "source": "oracle-snapshot",
+  "resources": [
+    "audit",
+    "customers",
+    "dashboard",
+    "invoices",
+    "orders",
+    "payments",
+    "products"
+  ],
+  "database": {
+    "status": "ready",
+    "module": "oracle-real-connector",
+    "driver": "oracledb",
+    "dsn_configured": true,
+    "user_configured": true
+  }
+}

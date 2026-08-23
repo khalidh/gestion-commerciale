@@ -1,0 +1,16 @@
+[
+  {
+    "payment_id": 1,
+    "invoice_id": 1,
+    "payment_date": "2026-08-23T23:14:08",
+    "payment_amount": 2500.0,
+    "payment_method": "TRANSFER"
+  },
+  {
+    "payment_id": 2,
+    "invoice_id": 2,
+    "payment_date": "2026-08-23T23:24:34",
+    "payment_amount": 320.0,
+    "payment_method": "TRANSFER"
+  }
+]

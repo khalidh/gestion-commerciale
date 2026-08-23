@@ -1,0 +1,146 @@
+[
+  {
+    "audit_log_id": 18,
+    "module_name": "ORDER",
+    "action_name": "UPDATE",
+    "actor_name": "APP_USER",
+    "action_details": "sales_order_id=4; order_number=ORD-004; status=VALIDATED",
+    "created_at": "2026-08-23T23:25:24"
+  },
+  {
+    "audit_log_id": 17,
+    "module_name": "ORDER",
+    "action_name": "UPDATE",
+    "actor_name": "APP_USER",
+    "action_details": "sales_order_id=4; order_number=ORD-004; status=DRAFT",
+    "created_at": "2026-08-23T23:25:24"
+  },
+  {
+    "audit_log_id": 16,
+    "module_name": "ORDER",
+    "action_name": "CREATE",
+    "actor_name": "APP_USER",
+    "action_details": "sales_order_id=4; order_number=ORD-004; status=DRAFT",
+    "created_at": "2026-08-23T23:25:24"
+  },
+  {
+    "audit_log_id": 15,
+    "module_name": "CUSTOMER",
+    "action_name": "CREATE",
+    "actor_name": "APP_USER",
+    "action_details": "customer_id=3; customer_code=CUST-003",
+    "created_at": "2026-08-23T23:25:24"
+  },
+  {
+    "audit_log_id": 14,
+    "module_name": "INVOICE",
+    "action_name": "UPDATE",
+    "actor_name": "APP_USER",
+    "action_details": "invoice_id=2; invoice_number=INV-002; status=PAID",
+    "created_at": "2026-08-23T23:24:34"
+  },
+  {
+    "audit_log_id": 13,
+    "module_name": "PAYMENT",
+    "action_name": "REGISTER",
+    "actor_name": "APP_USER",
+    "action_details": "payment_id=2; invoice_id=2; amount=320",
+    "created_at": "2026-08-23T23:24:34"
+  },
+  {
+    "audit_log_id": 12,
+    "module_name": "INVOICE",
+    "action_name": "GENERATE",
+    "actor_name": "APP_USER",
+    "action_details": "invoice_id=2; invoice_number=INV-002; status=OPEN",
+    "created_at": "2026-08-23T23:24:34"
+  },
+  {
+    "audit_log_id": 11,
+    "module_name": "ORDER",
+    "action_name": "UPDATE",
+    "actor_name": "APP_USER",
+    "action_details": "sales_order_id=3; order_number=ORD-003; status=VALIDATED",
+    "created_at": "2026-08-23T23:24:27"
+  },
+  {
+    "audit_log_id": 10,
+    "module_name": "ORDER",
+    "action_name": "UPDATE",
+    "actor_name": "APP_USER",
+    "action_details": "sales_order_id=3; order_number=ORD-003; status=DRAFT",
+    "created_at": "2026-08-23T23:24:27"
+  },
+  {
+    "audit_log_id": 9,
+    "module_name": "ORDER",
+    "action_name": "CREATE",
+    "actor_name": "APP_USER",
+    "action_details": "sales_order_id=3; order_number=ORD-003; status=DRAFT",
+    "created_at": "2026-08-23T23:24:27"
+  },
+  {
+    "audit_log_id": 8,
+    "module_name": "ORDER",
+    "action_name": "UPDATE",
+    "actor_name": "APP_USER",
+    "action_details": "sales_order_id=2; order_number=ORD-002; status=DRAFT",
+    "created_at": "2026-08-23T23:14:08"
+  },
+  {
+    "audit_log_id": 7,
+    "module_name": "ORDER",
+    "action_name": "CREATE",
+    "actor_name": "APP_USER",
+    "action_details": "sales_order_id=2; order_number=ORD-002; status=DRAFT",
+    "created_at": "2026-08-23T23:14:08"
+  },
+  {
+    "audit_log_id": 6,
+    "module_name": "INVOICE",
+    "action_name": "UPDATE",
+    "actor_name": "APP_USER",
+    "action_details": "invoice_id=1; invoice_number=INV-001; status=PAID",
+    "created_at": "2026-08-23T23:14:08"
+  },
+  {
+    "audit_log_id": 5,
+    "module_name": "PAYMENT",
+    "action_name": "REGISTER",
+    "actor_name": "APP_USER",
+    "action_details": "payment_id=1; invoice_id=1; amount=2500",
+    "created_at": "2026-08-23T23:14:08"
+  },
+  {
+    "audit_log_id": 4,
+    "module_name": "INVOICE",
+    "action_name": "GENERATE",
+    "actor_name": "APP_USER",
+    "action_details": "invoice_id=1; invoice_number=INV-001; status=OPEN",
+    "created_at": "2026-08-23T23:14:08"
+  },
+  {
+    "audit_log_id": 3,
+    "module_name": "ORDER",
+    "action_name": "UPDATE",
+    "actor_name": "APP_USER",
+    "action_details": "sales_order_id=1; order_number=ORD-001; status=VALIDATED",
+    "created_at": "2026-08-23T23:14:08"
+  },
+  {
+    "audit_log_id": 2,
+    "module_name": "ORDER",
+    "action_name": "UPDATE",
+    "actor_name": "APP_USER",
+    "action_details": "sales_order_id=1; order_number=ORD-001; status=DRAFT",
+    "created_at": "2026-08-23T23:14:08"
+  },
+  {
+    "audit_log_id": 1,
+    "module_name": "ORDER",
+    "action_name": "CREATE",
+    "actor_name": "APP_USER",
+    "action_details": "sales_order_id=1; order_number=ORD-001; status=DRAFT",
+    "created_at": "2026-08-23T23:14:08"
+  }
+]

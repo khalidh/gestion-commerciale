@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestion Commerciale - Phase 3</title>
+    <link rel="stylesheet" href="styles.css?v=phase3e" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Oracle / APEX / PL/SQL</p>
+        <h1>Gestion commerciale</h1>
+        <p>Phase 3 opérationnelle sans authentification, connectée à Oracle via ORDS.</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="resetDemo" type="button" class="secondary-button">Réinitialiser</button>
+        <span id="dataSource" class="status-pill">Connexion en cours</span>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="toolbar" aria-label="Navigation principale">
+        <button class="tab active" data-view="dashboard" type="button">Tableau de bord</button>
+        <button class="tab" data-view="customers" type="button">Clients</button>
+        <button class="tab" data-view="products" type="button">Produits</button>
+        <button class="tab" data-view="orders" type="button">Commandes</button>
+        <button class="tab" data-view="invoices" type="button">Factures</button>
+        <button class="tab" data-view="payments" type="button">Paiements</button>
+        <button class="tab" data-view="reports" type="button">Reporting</button>
+      </section>
+
+      <section id="dashboard" class="panel active">
+        <div class="section-title">
+          <div>
+            <h2>Vue d’ensemble</h2>
+            <p>Suivi immédiat du portefeuille commercial, du carnet de commandes et de la facturation.</p>
+          </div>
+        </div>
+        <div id="kpis" class="kpis"></div>
+        <div class="grid two-cols">
+          <article class="card">
+            <h3>Dernières activités</h3>
+            <ul id="activityList" class="activity-list"></ul>
+          </article>
+          <article class="card highlight-card">
+            <h3>Résumé métier</h3>
+            <p id="summaryText"></p>
+          </article>
+        </div>
+      </section>
+
+      <section id="customers" class="panel">
+        <div class="section-title">
+          <div>
+            <h2>Clients</h2>
+            <p>Création et suivi des comptes clients actifs ou inactifs.</p>
+          </div>
+        </div>
+        <form id="customerForm" class="data-form">
+          <label>Nom du client<input id="customerName" required placeholder="Ex. Contoso France" /></label>
+          <label>Contact<input id="customerContact" placeholder="Nom du contact" /></label>
+          <button id="addCustomer" type="button">Ajouter le client</button>
+        </form>
+        <div id="customersList" class="data-grid"></div>
+      </section>
+
+      <section id="products" class="panel">
+        <div class="section-title">
+          <div>
+            <h2>Produits</h2>
+            <p>Catalogue de produits et services facturables.</p>
+          </div>
+        </div>
+        <form id="productForm" class="data-form">
+          <label>Nom du produit<input id="productName" required placeholder="Ex. Support Gold" /></label>
+          <label>Prix HT<input id="productPrice" type="number" min="0" step="0.01" required placeholder="590" /></label>
+          <button id="addProduct" type="button">Ajouter le produit</button>
+        </form>
+        <div id="productsList" class="data-grid"></div>
+      </section>
+
+      <section id="orders" class="panel">
+        <div class="section-title">
+          <div>
+            <h2>Commandes</h2>
+            <p>Création des commandes, calcul du montant et génération des factures.</p>
+          </div>
+        </div>
+        <form id="orderForm" class="data-form wide-form">
+          <label>Client<select id="orderCustomer" required></select></label>
+          <label>Produit<select id="orderProduct" required></select></label>
+          <label>Quantité<input id="orderQty" type="number" min="1" value="1" required /></label>
+          <button id="addOrder" type="button">Créer la commande</button>
+        </form>
+        <div id="ordersList" class="data-grid"></div>
+      </section>
+
+      <section id="invoices" class="panel">
+        <div class="section-title">
+          <div>
+            <h2>Factures</h2>
+            <p>Factures générées depuis les commandes validées.</p>
+          </div>
+        </div>
+        <div id="invoicesList" class="data-grid"></div>
+      </section>
+
+      <section id="payments" class="panel">
+        <div class="section-title">
+          <div>
+            <h2>Paiements</h2>
+            <p>Encaissement des factures ouvertes et suivi des règlements.</p>
+          </div>
+        </div>
+        <form id="paymentForm" class="data-form wide-form">
+          <label>Facture<select id="paymentInvoice" required></select></label>
+          <label>Montant<input id="paymentAmount" type="number" min="0" step="0.01" required /></label>
+          <label>Mode<select id="paymentMethod"><option>Virement</option><option>Carte</option><option>Chèque</option></select></label>
+          <button id="addPayment" type="button">Enregistrer le paiement</button>
+        </form>
+        <div id="paymentsList" class="data-grid"></div>
+      </section>
+
+      <section id="reports" class="panel">
+        <div class="section-title">
+          <div>
+            <h2>Reporting & audit</h2>
+            <p>Vue de pilotage Phase 2 avec synthèse commerciale, soldes ouverts et journal métier.</p>
+          </div>
+          <button id="exportCsv" type="button" class="secondary-panel-button">Exporter CSV</button>
+        </div>
+        <div id="reportCards" class="report-grid"></div>
+        <article class="card report-table-card">
+          <h3>Factures et soldes</h3>
+          <div id="invoiceAging" class="table-wrap"></div>
+        </article>
+        <article class="card report-table-card">
+          <h3>Journal d'audit</h3>
+          <div id="auditLog" class="table-wrap"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="app.js?v=phase3e"></script>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+[
+  {
+    "sales_order_id": 1,
+    "order_number": "ORD-001",
+    "customer_name": "Acme SA",
+    "order_status": "VALIDATED",
+    "total_amount": 2500.0,
+    "billing_status": "PAID"
+  },
+  {
+    "sales_order_id": 2,
+    "order_number": "ORD-002",
+    "customer_name": "Globex",
+    "order_status": "DRAFT",
+    "total_amount": 1600.0,
+    "billing_status": "NOT_INVOICED"
+  },
+  {
+    "sales_order_id": 3,
+    "order_number": "ORD-003",
+    "customer_name": "Acme SA",
+    "order_status": "VALIDATED",
+    "total_amount": 320.0,
+    "billing_status": "PAID"
+  },
+  {
+    "sales_order_id": 4,
+    "order_number": "ORD-004",
+    "customer_name": "Acme SA",
+    "order_status": "VALIDATED",
+    "total_amount": 950.0,
+    "billing_status": "NOT_INVOICED"
+  }
+]
