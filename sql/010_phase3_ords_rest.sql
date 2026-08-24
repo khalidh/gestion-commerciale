@@ -45,7 +45,7 @@ BEGIN
         p_pattern => 'index',
         p_method => 'GET',
         p_source_type => ORDS.source_type_plsql,
-        p_source => q'[
+        p_source => q'~
 DECLARE
     l_access_status NUMBER;
 BEGIN
@@ -63,7 +63,7 @@ BEGIN
     owa_util.http_header_close;
     htp.prn('{"name":"Gestion Commerciale Phase 3 API","endpoints":"/dashboard,/customers,/products,/orders,/orders/:order_id/invoice,/invoices,/payments,/audit,/auth/session"}');
 END;
-]'
+~'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -75,7 +75,7 @@ END;
         p_pattern => 'auth/session',
         p_method => 'GET',
         p_source_type => ORDS.source_type_plsql,
-        p_source => q'[
+        p_source => q'~
 DECLARE
     l_access_status NUMBER;
     l_payload CLOB;
@@ -108,7 +108,7 @@ BEGIN
     owa_util.http_header_close;
     htp.prn(l_payload);
 END;
-]'
+~'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -120,7 +120,7 @@ END;
         p_pattern => 'dashboard',
         p_method => 'GET',
         p_source_type => ORDS.source_type_plsql,
-        p_source => q'[
+        p_source => q'~
 DECLARE
     l_access_status NUMBER;
     l_payload CLOB;
@@ -151,7 +151,7 @@ BEGIN
     owa_util.http_header_close;
     htp.prn(l_payload);
 END;
-]'
+~'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -162,20 +162,57 @@ END;
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'customers',
         p_method => 'GET',
-        p_source_type => ORDS.source_type_query,
-        p_source => q'[
-SELECT customer_id, customer_code, customer_name, customer_type, email, phone, status
-FROM customers
-WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 200
-ORDER BY customer_name
-]'
+        p_source_type => ORDS.source_type_plsql,
+        p_source => q'~
+DECLARE
+    l_access_status NUMBER;
+    l_payload CLOB;
+BEGIN
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
+
+    SELECT NVL(
+        json_arrayagg(
+            json_object(
+                'customer_id' VALUE customer_id,
+                'customer_code' VALUE customer_code,
+                'customer_name' VALUE customer_name,
+                'customer_type' VALUE customer_type,
+                'email' VALUE email,
+                'phone' VALUE phone,
+                'status' VALUE status
+                RETURNING CLOB
+            )
+            RETURNING CLOB
+        ),
+        TO_CLOB('[]')
+    )
+    INTO l_payload
+    FROM (
+        SELECT customer_id, customer_code, customer_name, customer_type, email, phone, status
+        FROM customers
+        ORDER BY customer_name
+    );
+
+    :status_code := 200;
+    owa_util.mime_header('application/json', FALSE);
+    owa_util.http_header_close;
+    htp.prn(l_payload);
+END;
+~'
     );
     ORDS.DEFINE_HANDLER(
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'customers',
         p_method => 'POST',
         p_source_type => ORDS.source_type_plsql,
-        p_source => q'[
+        p_source => q'~
 DECLARE
     l_next_number NUMBER;
     l_customer_code VARCHAR2(30);
@@ -202,7 +239,7 @@ BEGIN
     );
     :status_code := 201;
 END;
-]'
+~'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -213,13 +250,49 @@ END;
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'products',
         p_method => 'GET',
-        p_source_type => ORDS.source_type_query,
-        p_source => q'[
-SELECT product_id, product_code, product_name, unit_price, currency_code, status
-FROM products
-WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 200
-ORDER BY product_name
-]'
+        p_source_type => ORDS.source_type_plsql,
+        p_source => q'~
+DECLARE
+    l_access_status NUMBER;
+    l_payload CLOB;
+BEGIN
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
+
+    SELECT NVL(
+        json_arrayagg(
+            json_object(
+                'product_id' VALUE product_id,
+                'product_code' VALUE product_code,
+                'product_name' VALUE product_name,
+                'unit_price' VALUE unit_price,
+                'currency_code' VALUE currency_code,
+                'status' VALUE status
+                RETURNING CLOB
+            )
+            RETURNING CLOB
+        ),
+        TO_CLOB('[]')
+    )
+    INTO l_payload
+    FROM (
+        SELECT product_id, product_code, product_name, unit_price, currency_code, status
+        FROM products
+        ORDER BY product_name
+    );
+
+    :status_code := 200;
+    owa_util.mime_header('application/json', FALSE);
+    owa_util.http_header_close;
+    htp.prn(l_payload);
+END;
+~'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -230,20 +303,56 @@ ORDER BY product_name
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'orders',
         p_method => 'GET',
-        p_source_type => ORDS.source_type_query,
-        p_source => q'[
-SELECT sales_order_id, order_number, customer_name, order_status, total_amount, billing_status
-FROM v_sales_pipeline
-WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 200
-ORDER BY sales_order_id
-]'
+        p_source_type => ORDS.source_type_plsql,
+        p_source => q'~
+DECLARE
+    l_access_status NUMBER;
+    l_payload CLOB;
+BEGIN
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
+
+    SELECT NVL(
+        json_arrayagg(
+            json_object(
+                'sales_order_id' VALUE sales_order_id,
+                'order_number' VALUE order_number,
+                'customer_name' VALUE customer_name,
+                'order_status' VALUE order_status,
+                'total_amount' VALUE total_amount,
+                'billing_status' VALUE billing_status
+                RETURNING CLOB
+            )
+            RETURNING CLOB
+        ),
+        TO_CLOB('[]')
+    )
+    INTO l_payload
+    FROM (
+        SELECT sales_order_id, order_number, customer_name, order_status, total_amount, billing_status
+        FROM v_sales_pipeline
+        ORDER BY sales_order_id
+    );
+
+    :status_code := 200;
+    owa_util.mime_header('application/json', FALSE);
+    owa_util.http_header_close;
+    htp.prn(l_payload);
+END;
+~'
     );
     ORDS.DEFINE_HANDLER(
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'orders',
         p_method => 'POST',
         p_source_type => ORDS.source_type_plsql,
-        p_source => q'[
+        p_source => q'~
 DECLARE
     l_order_id sales_orders.sales_order_id%TYPE;
     l_next_number NUMBER;
@@ -269,7 +378,7 @@ BEGIN
     pkg_sales.validate_order(l_order_id);
     :status_code := 201;
 END;
-]'
+~'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -281,7 +390,7 @@ END;
         p_pattern => 'orders/:order_id/invoice',
         p_method => 'POST',
         p_source_type => ORDS.source_type_plsql,
-        p_source => q'[
+        p_source => q'~
 DECLARE
     l_next_number NUMBER;
     l_invoice_number invoices.invoice_number%TYPE;
@@ -301,7 +410,7 @@ BEGIN
     pkg_invoice.generate_invoice(TO_NUMBER(:order_id), l_invoice_number);
     :status_code := 201;
 END;
-]'
+~'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -312,13 +421,51 @@ END;
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'invoices',
         p_method => 'GET',
-        p_source_type => ORDS.source_type_query,
-        p_source => q'[
-SELECT invoice_id, invoice_number, sales_order_id, customer_name, total_amount, paid_amount, remaining_amount, invoice_status
-FROM v_invoice_balances
-WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER') = 200
-ORDER BY invoice_id
-]'
+        p_source_type => ORDS.source_type_plsql,
+        p_source => q'~
+DECLARE
+    l_access_status NUMBER;
+    l_payload CLOB;
+BEGIN
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
+
+    SELECT NVL(
+        json_arrayagg(
+            json_object(
+                'invoice_id' VALUE invoice_id,
+                'invoice_number' VALUE invoice_number,
+                'sales_order_id' VALUE sales_order_id,
+                'customer_name' VALUE customer_name,
+                'total_amount' VALUE total_amount,
+                'paid_amount' VALUE paid_amount,
+                'remaining_amount' VALUE remaining_amount,
+                'invoice_status' VALUE invoice_status
+                RETURNING CLOB
+            )
+            RETURNING CLOB
+        ),
+        TO_CLOB('[]')
+    )
+    INTO l_payload
+    FROM (
+        SELECT invoice_id, invoice_number, sales_order_id, customer_name, total_amount, paid_amount, remaining_amount, invoice_status
+        FROM v_invoice_balances
+        ORDER BY invoice_id
+    );
+
+    :status_code := 200;
+    owa_util.mime_header('application/json', FALSE);
+    owa_util.http_header_close;
+    htp.prn(l_payload);
+END;
+~'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -329,20 +476,55 @@ ORDER BY invoice_id
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'payments',
         p_method => 'GET',
-        p_source_type => ORDS.source_type_query,
-        p_source => q'[
-SELECT payment_id, invoice_id, payment_date, payment_amount, payment_method
-FROM payments
-WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER') = 200
-ORDER BY payment_id
-]'
+        p_source_type => ORDS.source_type_plsql,
+        p_source => q'~
+DECLARE
+    l_access_status NUMBER;
+    l_payload CLOB;
+BEGIN
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
+
+    SELECT NVL(
+        json_arrayagg(
+            json_object(
+                'payment_id' VALUE payment_id,
+                'invoice_id' VALUE invoice_id,
+                'payment_date' VALUE TO_CHAR(payment_date, 'YYYY-MM-DD"T"HH24:MI:SS'),
+                'payment_amount' VALUE payment_amount,
+                'payment_method' VALUE payment_method
+                RETURNING CLOB
+            )
+            RETURNING CLOB
+        ),
+        TO_CLOB('[]')
+    )
+    INTO l_payload
+    FROM (
+        SELECT payment_id, invoice_id, payment_date, payment_amount, payment_method
+        FROM payments
+        ORDER BY payment_id
+    );
+
+    :status_code := 200;
+    owa_util.mime_header('application/json', FALSE);
+    owa_util.http_header_close;
+    htp.prn(l_payload);
+END;
+~'
     );
     ORDS.DEFINE_HANDLER(
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'payments',
         p_method => 'POST',
         p_source_type => ORDS.source_type_plsql,
-        p_source => q'[
+        p_source => q'~
 DECLARE
     l_access_status NUMBER;
 BEGIN
@@ -358,7 +540,7 @@ BEGIN
     pkg_payment.record_payment(TO_NUMBER(:invoice_id), TO_NUMBER(:amount), NVL(:payment_method, 'TRANSFER'));
     :status_code := 201;
 END;
-]'
+~'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -369,14 +551,50 @@ END;
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'audit',
         p_method => 'GET',
-        p_source_type => ORDS.source_type_query,
-        p_source => q'[
-SELECT audit_log_id, module_name, action_name, actor_name, action_details, created_at
-FROM audit_log
-WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,REPORT_USER') = 200
-ORDER BY audit_log_id DESC
-FETCH FIRST 50 ROWS ONLY
-]'
+        p_source_type => ORDS.source_type_plsql,
+        p_source => q'~
+DECLARE
+    l_access_status NUMBER;
+    l_payload CLOB;
+BEGIN
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,REPORT_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
+
+    SELECT NVL(
+        json_arrayagg(
+            json_object(
+                'audit_log_id' VALUE audit_log_id,
+                'module_name' VALUE module_name,
+                'action_name' VALUE action_name,
+                'actor_name' VALUE actor_name,
+                'action_details' VALUE action_details,
+                'created_at' VALUE TO_CHAR(created_at, 'YYYY-MM-DD"T"HH24:MI:SS')
+                RETURNING CLOB
+            )
+            RETURNING CLOB
+        ),
+        TO_CLOB('[]')
+    )
+    INTO l_payload
+    FROM (
+        SELECT audit_log_id, module_name, action_name, actor_name, action_details, created_at
+        FROM audit_log
+        ORDER BY audit_log_id DESC
+        FETCH FIRST 50 ROWS ONLY
+    );
+
+    :status_code := 200;
+    owa_util.mime_header('application/json', FALSE);
+    owa_util.http_header_close;
+    htp.prn(l_payload);
+END;
+~'
     );
 
     COMMIT;
