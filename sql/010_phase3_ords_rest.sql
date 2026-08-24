@@ -44,13 +44,25 @@ BEGIN
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'index',
         p_method => 'GET',
-        p_source_type => ORDS.source_type_query_one_row,
+        p_source_type => ORDS.source_type_plsql,
         p_source => q'[
-SELECT
-    'Gestion Commerciale Phase 3 API' AS name,
-    '/dashboard,/customers,/products,/orders,/orders/:order_id/invoice,/invoices,/payments,/audit,/auth/session' AS endpoints
-FROM dual
-WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER') = 1
+DECLARE
+    l_access_status NUMBER;
+BEGIN
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
+
+    :status_code := 200;
+    owa_util.mime_header('application/json', FALSE);
+    owa_util.http_header_close;
+    htp.prn('{"name":"Gestion Commerciale Phase 3 API","endpoints":"/dashboard,/customers,/products,/orders,/orders/:order_id/invoice,/invoices,/payments,/audit,/auth/session"}');
+END;
 ]'
     );
 
@@ -62,19 +74,40 @@ WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'auth/session',
         p_method => 'GET',
-        p_source_type => ORDS.source_type_query_one_row,
+        p_source_type => ORDS.source_type_plsql,
         p_source => q'[
-SELECT
-    client_code,
-    client_name,
-    role_code,
-    status,
-    TO_CHAR(expires_at, 'YYYY-MM-DD"T"HH24:MI:SS') AS expires_at
-FROM app_api_clients
-WHERE api_key_hash = STANDARD_HASH(:X_API_KEY, 'SHA256')
-  AND status = 'ACTIVE'
-  AND (expires_at IS NULL OR expires_at >= SYSDATE)
-        AND pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER') = 1
+DECLARE
+    l_access_status NUMBER;
+    l_payload CLOB;
+BEGIN
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
+
+    SELECT json_object(
+        'client_code' VALUE client_code,
+        'client_name' VALUE client_name,
+        'role_code' VALUE role_code,
+        'status' VALUE status,
+        'expires_at' VALUE TO_CHAR(expires_at, 'YYYY-MM-DD"T"HH24:MI:SS')
+        RETURNING CLOB
+    )
+    INTO l_payload
+    FROM app_api_clients
+    WHERE api_key_hash = STANDARD_HASH(:X_API_KEY, 'SHA256')
+      AND status = 'ACTIVE'
+      AND (expires_at IS NULL OR expires_at >= SYSDATE);
+
+    :status_code := 200;
+    owa_util.mime_header('application/json', FALSE);
+    owa_util.http_header_close;
+    htp.prn(l_payload);
+END;
 ]'
     );
 
@@ -86,17 +119,38 @@ WHERE api_key_hash = STANDARD_HASH(:X_API_KEY, 'SHA256')
         p_module_name => 'gestion-commerciale.phase3',
         p_pattern => 'dashboard',
         p_method => 'GET',
-        p_source_type => ORDS.source_type_query_one_row,
+        p_source_type => ORDS.source_type_plsql,
         p_source => q'[
-SELECT
-    active_customers,
-    active_products,
-    validated_orders,
-    invoiced_amount,
-    paid_amount,
-    outstanding_amount
-FROM v_phase2_dashboard
-WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER') = 1
+DECLARE
+    l_access_status NUMBER;
+    l_payload CLOB;
+BEGIN
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
+
+    SELECT json_object(
+        'active_customers' VALUE active_customers,
+        'active_products' VALUE active_products,
+        'validated_orders' VALUE validated_orders,
+        'invoiced_amount' VALUE invoiced_amount,
+        'paid_amount' VALUE paid_amount,
+        'outstanding_amount' VALUE outstanding_amount
+        RETURNING CLOB
+    )
+    INTO l_payload
+    FROM v_phase2_dashboard;
+
+    :status_code := 200;
+    owa_util.mime_header('application/json', FALSE);
+    owa_util.http_header_close;
+    htp.prn(l_payload);
+END;
 ]'
     );
 
@@ -112,7 +166,7 @@ WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER
         p_source => q'[
 SELECT customer_id, customer_code, customer_name, customer_type, email, phone, status
 FROM customers
-WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 1
+WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 200
 ORDER BY customer_name
 ]'
     );
@@ -163,7 +217,7 @@ END;
         p_source => q'[
 SELECT product_id, product_code, product_name, unit_price, currency_code, status
 FROM products
-WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 1
+WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 200
 ORDER BY product_name
 ]'
     );
@@ -180,7 +234,7 @@ ORDER BY product_name
         p_source => q'[
 SELECT sales_order_id, order_number, customer_name, order_status, total_amount, billing_status
 FROM v_sales_pipeline
-WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 1
+WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 200
 ORDER BY sales_order_id
 ]'
     );
@@ -262,7 +316,7 @@ END;
         p_source => q'[
 SELECT invoice_id, invoice_number, sales_order_id, customer_name, total_amount, paid_amount, remaining_amount, invoice_status
 FROM v_invoice_balances
-WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER') = 1
+WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER') = 200
 ORDER BY invoice_id
 ]'
     );
@@ -279,7 +333,7 @@ ORDER BY invoice_id
         p_source => q'[
 SELECT payment_id, invoice_id, payment_date, payment_amount, payment_method
 FROM payments
-WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER') = 1
+WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER') = 200
 ORDER BY payment_id
 ]'
     );
@@ -319,7 +373,7 @@ END;
         p_source => q'[
 SELECT audit_log_id, module_name, action_name, actor_name, action_details, created_at
 FROM audit_log
-WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,REPORT_USER') = 1
+WHERE pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,REPORT_USER') = 200
 ORDER BY audit_log_id DESC
 FETCH FIRST 50 ROWS ONLY
 ]'
