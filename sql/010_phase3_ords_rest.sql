@@ -52,9 +52,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -83,9 +89,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -128,9 +140,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -171,9 +189,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -221,9 +245,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -259,9 +289,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -312,9 +348,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -363,9 +405,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -399,9 +447,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -430,9 +484,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -485,9 +545,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -531,9 +597,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,FINANCE_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
@@ -560,9 +632,15 @@ BEGIN
     l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,REPORT_USER');
     IF l_access_status = 401 THEN
         :status_code := 401;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"UNAUTHORIZED","message":"API key missing or invalid"}');
         RETURN;
     ELSIF l_access_status = 403 THEN
         :status_code := 403;
+        owa_util.mime_header('application/json', FALSE);
+        owa_util.http_header_close;
+        htp.prn('{"code":"FORBIDDEN","message":"Insufficient role permissions"}');
         RETURN;
     END IF;
 
