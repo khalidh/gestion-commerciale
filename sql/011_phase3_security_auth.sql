@@ -32,6 +32,7 @@ END;
 CREATE OR REPLACE PACKAGE pkg_security AS
     FUNCTION normalize_key(p_api_key IN VARCHAR2) RETURN VARCHAR2;
     FUNCTION has_role_access(p_role_code IN VARCHAR2, p_allowed_roles IN VARCHAR2) RETURN NUMBER;
+    FUNCTION get_access_status(p_api_key IN VARCHAR2, p_allowed_roles IN VARCHAR2) RETURN NUMBER;
     FUNCTION require_access(p_api_key IN VARCHAR2, p_allowed_roles IN VARCHAR2) RETURN NUMBER;
 
     PROCEDURE upsert_api_client(
@@ -65,14 +66,14 @@ CREATE OR REPLACE PACKAGE BODY pkg_security AS
         RETURN 0;
     END has_role_access;
 
-    FUNCTION require_access(p_api_key IN VARCHAR2, p_allowed_roles IN VARCHAR2) RETURN NUMBER IS
+    FUNCTION get_access_status(p_api_key IN VARCHAR2, p_allowed_roles IN VARCHAR2) RETURN NUMBER IS
         l_role_code app_api_clients.role_code%TYPE;
         l_key VARCHAR2(512);
     BEGIN
         l_key := normalize_key(p_api_key);
 
         IF l_key IS NULL OR l_key = '' THEN
-            RAISE_APPLICATION_ERROR(-20041, 'Missing API key');
+            RETURN 401;
         END IF;
 
         SELECT role_code
@@ -83,13 +84,29 @@ CREATE OR REPLACE PACKAGE BODY pkg_security AS
            AND (expires_at IS NULL OR expires_at >= SYSDATE);
 
         IF has_role_access(l_role_code, p_allowed_roles) = 0 THEN
-            RAISE_APPLICATION_ERROR(-20043, 'Forbidden for role ' || l_role_code);
+            RETURN 403;
+        END IF;
+
+        RETURN 200;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RETURN 401;
+    END get_access_status;
+
+    FUNCTION require_access(p_api_key IN VARCHAR2, p_allowed_roles IN VARCHAR2) RETURN NUMBER IS
+        l_status NUMBER;
+    BEGIN
+        l_status := get_access_status(p_api_key, p_allowed_roles);
+
+        IF l_status = 401 THEN
+            RAISE_APPLICATION_ERROR(-20041, 'Missing API key');
+        END IF;
+
+        IF l_status = 403 THEN
+            RAISE_APPLICATION_ERROR(-20043, 'Forbidden for role');
         END IF;
 
         RETURN 1;
-    EXCEPTION
-        WHEN NO_DATA_FOUND THEN
-            RAISE_APPLICATION_ERROR(-20042, 'Invalid or expired API key');
     END require_access;
 
     PROCEDURE upsert_api_client(

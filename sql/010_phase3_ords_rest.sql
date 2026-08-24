@@ -74,7 +74,7 @@ FROM app_api_clients
 WHERE api_key_hash = STANDARD_HASH(:X_API_KEY, 'SHA256')
   AND status = 'ACTIVE'
   AND (expires_at IS NULL OR expires_at >= SYSDATE)
-    AND pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER') = 1
+        AND pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER') = 1
 ]'
     );
 
@@ -125,8 +125,16 @@ ORDER BY customer_name
 DECLARE
     l_next_number NUMBER;
     l_customer_code VARCHAR2(30);
+    l_access_status NUMBER;
 BEGIN
-    pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER');
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
 
     SELECT COUNT(*) + 1 INTO l_next_number FROM customers;
     l_customer_code := NVL(:customer_code, 'CUST-' || LPAD(l_next_number, 3, '0'));
@@ -187,8 +195,16 @@ DECLARE
     l_next_number NUMBER;
     l_order_number sales_orders.order_number%TYPE;
     l_unit_price products.unit_price%TYPE;
+    l_access_status NUMBER;
 BEGIN
-    pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER');
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
 
     SELECT COUNT(*) + 1 INTO l_next_number FROM sales_orders;
     l_order_number := NVL(:order_number, 'ORD-' || LPAD(l_next_number, 3, '0'));
@@ -215,8 +231,16 @@ END;
 DECLARE
     l_next_number NUMBER;
     l_invoice_number invoices.invoice_number%TYPE;
+    l_access_status NUMBER;
 BEGIN
-    pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER');
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
 
     SELECT COUNT(*) + 1 INTO l_next_number FROM invoices;
     l_invoice_number := NVL(:invoice_number, 'INV-' || LPAD(l_next_number, 3, '0'));
@@ -265,8 +289,17 @@ ORDER BY payment_id
         p_method => 'POST',
         p_source_type => ORDS.source_type_plsql,
         p_source => q'[
+DECLARE
+    l_access_status NUMBER;
 BEGIN
-    pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,FINANCE_USER');
+    l_access_status := pkg_security.get_access_status(:X_API_KEY, 'APP_ADMIN,FINANCE_USER');
+    IF l_access_status = 401 THEN
+        :status_code := 401;
+        RETURN;
+    ELSIF l_access_status = 403 THEN
+        :status_code := 403;
+        RETURN;
+    END IF;
 
     pkg_payment.record_payment(TO_NUMBER(:invoice_id), TO_NUMBER(:amount), NVL(:payment_method, 'TRANSFER'));
     :status_code := 201;
