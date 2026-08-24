@@ -17,9 +17,11 @@
    - sql/008_phase2_reporting_audit.sql
 8. Charger les transactions de démonstration Phase 2 :
    - sql/009_phase2_seed_transactions.sql
-9. Publier les endpoints ORDS Phase 3 :
+9. Appliquer la sécurité API Phase 3 (clés API + rôles + autorisations) :
+   - sql/011_phase3_security_auth.sql
+10. Publier les endpoints ORDS Phase 3 sécurisés :
    - sql/010_phase3_ords_rest.sql
-10. Réexécuter l’initialisation pour créer les vues sécurisées et grants dépendants des tables :
+11. Réexécuter l’initialisation pour créer les vues sécurisées et grants dépendants des tables :
    - sql/006_oracle_init.sql
-11. Tester la connexion depuis :
+12. Tester la connexion depuis :
    - oracle/connect_oracle.py

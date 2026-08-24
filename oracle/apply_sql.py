@@ -66,6 +66,11 @@ def split_statements(script):
     for line in script.splitlines():
         stripped = line.strip()
         upper = stripped.upper()
+
+        # SQL*Plus delimiter line: ignore when outside a PL/SQL block.
+        if stripped == '/' and not in_plsql:
+            continue
+
         if re.match(r'^CREATE\s+OR\s+REPLACE\s+(PACKAGE|TRIGGER|PROCEDURE|FUNCTION)\b', upper) or upper.startswith('DECLARE') or upper.startswith('BEGIN'):
             in_plsql = True
 

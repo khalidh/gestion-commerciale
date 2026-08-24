@@ -1,10 +1,12 @@
 const STORAGE_KEY = 'commercial-app-state-v4';
+const API_KEY_STORAGE_KEY = 'commercial-app-api-key';
 const ORDS_API_BASE_URL = `${window.location.origin}/ords/gestion-commerciale/gestion-commerciale/api`;
 const API_BASE_URL = ORDS_API_BASE_URL;
 
 let state = { customers: [], products: [], orders: [], invoices: [], payments: [], auditLog: [] };
 let dataSource = 'local';
 let dataSourceError = '';
+let authSession = null;
 
 const defaultState = {
   customers: [
@@ -39,6 +41,44 @@ function safeSelect(id) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function getApiKey() {
+  return sessionStorage.getItem(API_KEY_STORAGE_KEY) || '';
+}
+
+function saveApiKey(value) {
+  const trimmed = (value || '').trim();
+  if (!trimmed) {
+    return false;
+  }
+  sessionStorage.setItem(API_KEY_STORAGE_KEY, trimmed);
+  return true;
+}
+
+function clearApiKey() {
+  sessionStorage.removeItem(API_KEY_STORAGE_KEY);
+  authSession = null;
+}
+
+function authHeaders(extraHeaders = {}) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return { ...extraHeaders };
+  }
+  return {
+    ...extraHeaders,
+    'X-API-Key': apiKey
+  };
+}
+
+function buildApiUrl(baseUrl, path) {
+  const url = new URL(`${baseUrl}${path}`, window.location.origin);
+  const apiKey = getApiKey();
+  if (apiKey) {
+    url.searchParams.set('X_API_KEY', apiKey);
+  }
+  return url.toString();
 }
 
 function normalizeData(data) {
@@ -76,7 +116,14 @@ async function loadState() {
     state = clone(defaultState);
   }
 
+  if (!getApiKey()) {
+    dataSource = 'local';
+    dataSourceError = 'API key manquante (mode local)';
+    return;
+  }
+
   try {
+    authSession = await loadAuthSession();
     state = await loadOracleState();
     dataSource = 'oracle';
     dataSourceError = '';
@@ -90,7 +137,12 @@ async function loadState() {
 }
 
 async function fetchJson(path) {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+  const response = await fetch(buildApiUrl(API_BASE_URL, path), {
+    headers: authHeaders()
+  });
+  if (response.status === 401 || response.status === 403) {
+    throw new Error('authentification refusee');
+  }
   if (!response.ok) {
     throw new Error(`API ${path} indisponible`);
   }
@@ -102,14 +154,30 @@ async function fetchJson(path) {
 }
 
 async function postOrds(path, payload) {
-  const response = await fetch(`${ORDS_API_BASE_URL}${path}`, {
+  const response = await fetch(buildApiUrl(ORDS_API_BASE_URL, path), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload || {})
   });
+  if (response.status === 401 || response.status === 403) {
+    throw new Error('authentification refusee');
+  }
   if (!response.ok) {
     throw new Error(`ORDS ${path} a répondu ${response.status}`);
   }
+}
+
+async function loadAuthSession() {
+  const response = await fetch(buildApiUrl(ORDS_API_BASE_URL, '/auth/session'), {
+    headers: authHeaders()
+  });
+  if (response.status === 401 || response.status === 403) {
+    throw new Error('api key invalide ou role non autorise');
+  }
+  if (!response.ok) {
+    throw new Error('endpoint auth/session indisponible');
+  }
+  return response.json();
 }
 
 async function refreshOracleSnapshot() {
@@ -246,7 +314,8 @@ function emptyState(text) {
 function render() {
   const source = safeSelect('dataSource');
   if (source) {
-    source.textContent = dataSource === 'oracle' ? 'Oracle connecté' : `Données locales (${dataSourceError})`;
+    const roleLabel = authSession?.role_code ? ` (${authSession.role_code})` : '';
+    source.textContent = dataSource === 'oracle' ? `Oracle connecte${roleLabel}` : `Donnees locales (${dataSourceError})`;
   }
   renderDashboard();
   renderCustomers();
@@ -546,6 +615,25 @@ function bindEvents() {
 
   safeSelect('resetDemo')?.addEventListener('click', resetState);
 
+  safeSelect('saveApiKey')?.addEventListener('click', async () => {
+    const input = safeSelect('apiKeyInput');
+    if (!input || !saveApiKey(input.value)) {
+      dataSource = 'local';
+      dataSourceError = 'API key vide';
+      render();
+      return;
+    }
+    await refreshOracleSnapshot();
+    input.value = '';
+  });
+
+  safeSelect('clearApiKey')?.addEventListener('click', () => {
+    clearApiKey();
+    dataSource = 'local';
+    dataSourceError = 'session deconnectee';
+    render();
+  });
+
   safeSelect('addCustomer')?.addEventListener('click', async () => {
     const name = safeSelect('customerName')?.value.trim();
     const contact = safeSelect('customerContact')?.value.trim();
@@ -625,6 +713,10 @@ function boot() {
   bindEvents();
   state = clone(defaultState);
   render();
+  const apiKeyInput = safeSelect('apiKeyInput');
+  if (apiKeyInput && getApiKey()) {
+    apiKeyInput.placeholder = 'API key en session (masquee)';
+  }
   loadState().then(render);
 }
 

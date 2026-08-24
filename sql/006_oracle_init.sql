@@ -36,11 +36,16 @@ BEGIN
     IF l_role_exists = 0 THEN
         EXECUTE IMMEDIATE 'CREATE ROLE FINANCE_USER';
     END IF;
+
+    SELECT COUNT(*) INTO l_role_exists FROM dba_roles WHERE role = 'REPORT_USER';
+    IF l_role_exists = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE ROLE REPORT_USER';
+    END IF;
 END;
 /
 
-GRANT APP_ADMIN, SALES_USER, FINANCE_USER TO APP_USER;
-GRANT CREATE SESSION TO APP_ADMIN, SALES_USER, FINANCE_USER;
+GRANT APP_ADMIN, SALES_USER, FINANCE_USER, REPORT_USER TO APP_USER;
+GRANT CREATE SESSION TO APP_ADMIN, SALES_USER, FINANCE_USER, REPORT_USER;
 
 PROMPT Creating audit table for security and traceability
 DECLARE
@@ -76,12 +81,12 @@ BEGIN
 
     IF l_customer_table_exists = 1 THEN
         EXECUTE IMMEDIATE 'CREATE OR REPLACE VIEW APP_USER.v_customers AS SELECT customer_id, customer_code, customer_name, customer_type, email, phone, status FROM APP_USER.customers';
-        EXECUTE IMMEDIATE 'GRANT SELECT ON APP_USER.v_customers TO APP_ADMIN, SALES_USER, FINANCE_USER';
+        EXECUTE IMMEDIATE 'GRANT SELECT ON APP_USER.v_customers TO APP_ADMIN, SALES_USER, FINANCE_USER, REPORT_USER';
     END IF;
 
     IF l_order_table_exists = 1 THEN
         EXECUTE IMMEDIATE 'CREATE OR REPLACE VIEW APP_USER.v_sales_orders AS SELECT sales_order_id, order_number, customer_id, order_date, order_status, total_amount FROM APP_USER.sales_orders';
-        EXECUTE IMMEDIATE 'GRANT SELECT ON APP_USER.v_sales_orders TO APP_ADMIN, SALES_USER, FINANCE_USER';
+        EXECUTE IMMEDIATE 'GRANT SELECT ON APP_USER.v_sales_orders TO APP_ADMIN, SALES_USER, FINANCE_USER, REPORT_USER';
     END IF;
 END;
 /

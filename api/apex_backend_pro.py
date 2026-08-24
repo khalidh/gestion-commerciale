@@ -9,6 +9,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from api.oracle_real_connector import OracleRealConnector
+from api.security import auth_required, validate_role_token
 from oracle.export_api_snapshot import main as export_api_snapshot
 
 
@@ -60,6 +61,11 @@ class ApexBackendProHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
 
+        if path != '/apex/backend/pro/health':
+            allowed_roles = self._allowed_roles_for_path(path, 'GET')
+            if not self._authorize_request(allowed_roles):
+                return
+
         if path == '/apex/backend/pro/health':
             self._send_json({'status': 'ok', 'module': 'apex-backend-pro', 'oracle': OracleRealConnector().health()})
         elif path == '/apex/backend/pro/dashboard':
@@ -82,14 +88,58 @@ class ApexBackendProHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = urlparse(self.path).path
 
+        allowed_roles = self._allowed_roles_for_path(path, 'POST')
+        if not self._authorize_request(allowed_roles):
+            return
+
         if path == '/apex/backend/pro/snapshot/export':
             try:
                 export_api_snapshot()
                 self._send_json({'status': 'ok', 'message': 'oracle snapshot exported'})
             except Exception as exc:
-                self._send_json({'status': 'error', 'message': str(exc)}, status=500)
+                self._send_json({'status': 'error', 'message': self._safe_error(exc)}, status=500)
         else:
             self._send_json({'error': 'not found'}, status=404)
+
+    def _allowed_roles_for_path(self, path, method):
+        route_policies = {
+            ('GET', '/apex/backend/pro/dashboard'): {'APP_ADMIN', 'SALES_USER', 'FINANCE_USER', 'REPORT_USER'},
+            ('GET', '/apex/backend/pro/customers'): {'APP_ADMIN', 'SALES_USER', 'REPORT_USER'},
+            ('GET', '/apex/backend/pro/products'): {'APP_ADMIN', 'SALES_USER', 'REPORT_USER'},
+            ('GET', '/apex/backend/pro/orders'): {'APP_ADMIN', 'SALES_USER', 'REPORT_USER'},
+            ('GET', '/apex/backend/pro/invoices'): {'APP_ADMIN', 'FINANCE_USER', 'REPORT_USER'},
+            ('GET', '/apex/backend/pro/payments'): {'APP_ADMIN', 'FINANCE_USER', 'REPORT_USER'},
+            ('GET', '/apex/backend/pro/audit'): {'APP_ADMIN', 'REPORT_USER'},
+            ('POST', '/apex/backend/pro/snapshot/export'): {'APP_ADMIN', 'REPORT_USER'}
+        }
+        return route_policies.get((method, path), {'APP_ADMIN'})
+
+    def _authorize_request(self, allowed_roles):
+        if not auth_required():
+            return True
+
+        api_role = self.headers.get('X-Api-Role', '').strip().upper()
+        api_token = self.headers.get('X-Api-Token', '').strip()
+
+        if not api_role or not api_token:
+            self._send_json({'error': 'missing authentication headers'}, status=401)
+            return False
+
+        if api_role not in allowed_roles:
+            self._send_json({'error': 'forbidden role for this resource'}, status=403)
+            return False
+
+        if not validate_role_token(api_role, api_token):
+            self._send_json({'error': 'invalid authentication token'}, status=401)
+            return False
+
+        return True
+
+    def _safe_error(self, exc):
+        expose = os.getenv('API_DEBUG_ERRORS', 'false').lower() in ('1', 'true', 'yes', 'on')
+        if expose:
+            return str(exc)
+        return 'internal error'
 
     def _get_dashboard(self):
         try:
@@ -97,7 +147,7 @@ class ApexBackendProHandler(BaseHTTPRequestHandler):
         except Exception as exc:
             payload = format_demo_payload(load_demo_data())['dashboard']
             payload['source'] = 'demo-fallback'
-            payload['oracle_error'] = str(exc)
+            payload['oracle_error'] = self._safe_error(exc)
             return payload
 
     def _oracle_or_demo(self, resource_name, loader):
@@ -107,7 +157,7 @@ class ApexBackendProHandler(BaseHTTPRequestHandler):
         except Exception as exc:
             return {
                 'source': 'demo-fallback',
-                'oracle_error': str(exc),
+                'oracle_error': self._safe_error(exc),
                 'items': format_demo_payload(load_demo_data())[resource_name]
             }
 
@@ -116,14 +166,17 @@ class ApexBackendProHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self._send_cors_headers()
         self.send_header('Content-Type', 'application/json')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('X-Frame-Options', 'DENY')
+        self.send_header('Cache-Control', 'no-store')
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
     def _send_cors_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Api-Role, X-Api-Token')
 
     def log_message(self, format, *args):
         return

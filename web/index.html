@@ -3,17 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gestion Commerciale - Phase 3</title>
-    <link rel="stylesheet" href="styles.css?v=phase3e" />
+    <title>Gestion Commerciale - Phase 3 Securisee</title>
+    <link rel="stylesheet" href="styles.css?v=phase3prod" />
   </head>
   <body>
     <header class="topbar">
       <div>
         <p class="eyebrow">Oracle / APEX / PL/SQL</p>
         <h1>Gestion commerciale</h1>
-        <p>Phase 3 opérationnelle sans authentification, connectée à Oracle via ORDS.</p>
+        <p>Phases 1-3 operationnelles et securisees, connectees a Oracle via ORDS.</p>
       </div>
       <div class="topbar-actions">
+        <label class="auth-key-label" for="apiKeyInput">API Key</label>
+        <input id="apiKeyInput" type="password" placeholder="Entrez votre cle API" autocomplete="off" />
+        <button id="saveApiKey" type="button" class="secondary-button">Se connecter</button>
+        <button id="clearApiKey" type="button" class="secondary-button">Se deconnecter</button>
         <button id="resetDemo" type="button" class="secondary-button">Réinitialiser</button>
         <span id="dataSource" class="status-pill">Connexion en cours</span>
       </div>
@@ -142,6 +146,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=phase3e"></script>
+    <script src="app.js?v=phase3prod"></script>
   </body>
 </html>

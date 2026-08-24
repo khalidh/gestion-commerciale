@@ -12,6 +12,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Verify repository structure
         run: |
           test -f README.md
@@ -20,6 +25,25 @@ jobs:
           test -d apex
           test -d ai
           echo "Repository structure verified"
+
+      - name: Verify critical SQL scripts
+        run: |
+          test -f sql/006_oracle_init.sql
+          test -f sql/008_phase2_reporting_audit.sql
+          test -f sql/010_phase3_ords_rest.sql
+          test -f sql/011_phase3_security_auth.sql
+          echo "Critical SQL scripts verified"
+
+      - name: Python syntax validation
+        run: |
+          python -m compileall api oracle
+
+      - name: Check hardcoded defaults warning
+        run: |
+          if grep -R "GC_ADMIN_CHANGE_ME_2026!\|ChangeMe_AppUser_123!" -n README.md docs oracle sql >/tmp/default-secrets.txt; then
+            echo "Default placeholders detected (expected for bootstrap). Ensure they are rotated in deployment."
+            cat /tmp/default-secrets.txt
+          fi
 
       - name: Summarize release assets
         run: |

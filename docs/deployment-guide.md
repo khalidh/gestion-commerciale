@@ -13,13 +13,24 @@ Ce guide décrit la manière de préparer, déployer et faire tourner l’applic
 ## 3. Préparation de la base Oracle
 1. Créer ou utiliser un schéma applicatif.
 2. Exécuter les scripts SQL dans cet ordre :
+   - sql/006_oracle_init.sql
    - sql/001_schema.sql
    - sql/002_packages.sql
    - sql/003_apex_ready.sql
    - sql/004_plsql_packages.sql
    - sql/005_seed_data.sql
-   - sql/006_oracle_init.sql
+   - sql/007_phase1_core.sql
+   - sql/008_phase2_reporting_audit.sql
+   - sql/009_phase2_seed_transactions.sql
+   - sql/011_phase3_security_auth.sql
+   - sql/010_phase3_ords_rest.sql
+   - sql/006_oracle_init.sql (re-run pour grants dependants)
 3. Vérifier que les tables et packages ont bien été créés.
+
+Alternative recommandee :
+```bash
+./oracle/bootstrap_app_schema.sh
+```
 
 ## 4. Configuration de la connexion Oracle
 1. Copier l’exemple de configuration :
@@ -65,6 +76,11 @@ python3 api/apex_api.py
 python3 api/apex_backend_pro.py
 ```
 
+Variables de securite backend pro :
+- `API_AUTH_REQUIRED=true`
+- `API_AUTH_TOKENS=APP_ADMIN:token_admin,SALES_USER:token_sales,FINANCE_USER:token_finance,REPORT_USER:token_report`
+- `API_DEBUG_ERRORS=false`
+
 ## 7. Vérifications post-déploiement
 - vérifier la santé du service principal :
   ```bash
@@ -79,6 +95,12 @@ python3 api/apex_backend_pro.py
   curl http://127.0.0.1:5003/apex/backend/pro/health
   ```
 
+- verifier ORDS securise :
+   ```bash
+   curl -H 'X-API-Key: VOTRE_CLE_ADMIN_FORTE' \
+      http://127.0.0.1:8080/ords/gestion-commerciale/gestion-commerciale/api/auth/session
+   ```
+
 ## 8. Intégration Oracle APEX
 1. Créer une application APEX.
 2. Utiliser les pages décrites dans apex/apex-application-spec.md.
@@ -89,4 +111,7 @@ python3 api/apex_backend_pro.py
 - séparer les environnements DEV / TEST / PROD,
 - garder les scripts SQL versionnés,
 - journaliser les opérations critiques,
-- sécuriser l’accès aux services Python et à Oracle.
+- sécuriser l’accès aux services Python et à Oracle,
+- faire une rotation periodique des cles API et mots de passe Oracle,
+- ne jamais stocker de secrets de production en clair dans le depot,
+- activer supervision et alerting sur ORDS/API Oracle.

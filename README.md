@@ -19,7 +19,7 @@ Le projet couvre :
 - docs/ : spécifications, SDLC, harnais IA, guide de déploiement
 - sql/ : scripts SQL et PL/SQL pour la base de données
 - apex/ : spécification et template de structure APEX
-- web/ : prototype navigateur sans authentification
+- web/ : interface navigateur Phase 1-3 avec authentification API key
 - api/ : services Python et backend APEX
 - oracle/ : configuration et script de connexion Oracle
 - deploy/ : scripts de démarrage et de publication ORDS/APEX
@@ -35,7 +35,9 @@ Puis ouvrir :
 http://164.132.64.7:8080/i/gestion-commerciale/index.html
 ```
 
-Cette version navigateur couvre les flux Phase 1, Phase 2 et Phase 3 : création de client, ajout de produit, création de commande, génération de facture, enregistrement de paiement, reporting, soldes de factures, journal d’audit, export CSV, endpoints ORDS transactionnels et snapshots Oracle. Elle ne contient aucune authentification.
+Cette version navigateur couvre les flux Phase 1, Phase 2 et Phase 3 : création de client, ajout de produit, création de commande, génération de facture, enregistrement de paiement, reporting, soldes de factures, journal d’audit, export CSV, endpoints ORDS transactionnels et snapshots Oracle.
+
+Mise a jour production : l'acces ORDS est maintenant protege par cle API (`X-API-Key`) et controle de role (`APP_ADMIN`, `SALES_USER`, `FINANCE_USER`, `REPORT_USER`).
 
 ### 1 bis. Interface web locale de secours
 ```bash
@@ -75,6 +77,9 @@ La Phase 2 ajoute les vues de reporting, le package `pkg_reporting` et les trigg
 La Phase 3 ajoute les endpoints ORDS transactionnels avec :
 - sql/010_phase3_ords_rest.sql
 
+Le hardening de securite Phase 3 (clients API, hash des cles, controle d'acces par role) est ajoute avec :
+- sql/011_phase3_security_auth.sql
+
 Index public ORDS Phase 3 :
 ```text
 http://164.132.64.7:8080/ords/gestion-commerciale/gestion-commerciale/api/index
@@ -95,6 +100,30 @@ export ORACLE_ADMIN_DSN='//localhost:1521/FREEPDB1'
 ./oracle/bootstrap_app_schema.sh
 ```
 
+Ce bootstrap applique aussi les scripts de securite et ORDS Phase 3.
+
+## Authentification ORDS (production)
+
+1. Appliquer `sql/011_phase3_security_auth.sql` puis `sql/010_phase3_ords_rest.sql`.
+2. Changer immediatement les cles par defaut :
+```sql
+BEGIN
+	pkg_security.upsert_api_client('GC_ADMIN', 'Admin', 'APP_ADMIN', 'VOTRE_CLE_ADMIN_FORTE');
+	pkg_security.upsert_api_client('GC_SALES', 'Sales', 'SALES_USER', 'VOTRE_CLE_SALES_FORTE');
+	pkg_security.upsert_api_client('GC_FINANCE', 'Finance', 'FINANCE_USER', 'VOTRE_CLE_FINANCE_FORTE');
+	pkg_security.upsert_api_client('GC_REPORT', 'Report', 'REPORT_USER', 'VOTRE_CLE_REPORT_FORTE');
+	COMMIT;
+END;
+/
+```
+3. Appeler les endpoints ORDS avec l'entete `X-API-Key`.
+
+Exemple :
+```bash
+curl -H 'X-API-Key: VOTRE_CLE_ADMIN_FORTE' \
+	http://164.132.64.7:8080/ords/gestion-commerciale/gestion-commerciale/api/dashboard
+```
+
 Le driver Python Oracle est installé dans `.venv` avec :
 ```bash
 ./oracle/install_python_driver.sh
@@ -108,4 +137,6 @@ Le driver Python Oracle est installé dans `.venv` avec :
 - compatible avec un usage local, une preuve de concept ou une première version de production.
 
 ## Notes
-Ce dépôt est conçu comme une base de travail et une architecture de référence, pas comme une application finale prête à l’emploi sans adaptation à votre environnement Oracle.
+Ce depot reste une base de reference Oracle/APEX. Pour une mise en production finale, appliquer les controles reseau, le secret manager, la supervision et les procedures d'exploitation de votre SI.
+
+La trace de conformite aux specifications est disponible dans `docs/spec-compliance-matrix.md`.

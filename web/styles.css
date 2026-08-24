@@ -92,6 +92,25 @@ button:hover { background: var(--accent-strong); }
   justify-content: flex-end;
 }
 
+.auth-key-label {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#apiKeyInput {
+  min-width: 220px;
+  max-width: 320px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
+}
+
+#apiKeyInput::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .status-pill {
   display: inline-flex;
   border-radius: 999px;

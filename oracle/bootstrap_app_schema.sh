@@ -27,6 +27,8 @@ fi
   sql/005_seed_data.sql \
   sql/007_phase1_core.sql \
   sql/008_phase2_reporting_audit.sql \
-  sql/009_phase2_seed_transactions.sql
+  sql/009_phase2_seed_transactions.sql \
+  sql/011_phase3_security_auth.sql \
+  sql/010_phase3_ords_rest.sql
 .venv/bin/python oracle/apply_sql.py --admin sql/006_oracle_init.sql
 .venv/bin/python oracle/connect_oracle.py

@@ -3,7 +3,7 @@
 ## Objectifs
 - permettre les ecritures Oracle depuis une couche REST,
 - exposer des endpoints ORDS proches d'une application APEX reelle,
-- conserver une page navigateur sans authentification,
+- proteger les endpoints ORDS par authentification API key et roles,
 - rafraichir les snapshots publics apres les operations metier.
 
 ## Livrables
@@ -12,6 +12,7 @@
 3. Operations transactionnelles Oracle pour clients, commandes, factures et paiements.
 4. Export de snapshots Oracle vers `/i/gestion-commerciale/api/*.json`.
 5. Front navigateur capable d'appeler ORDS lorsque la source Oracle est active.
+6. Controle d'acces par roles: APP_ADMIN, SALES_USER, FINANCE_USER, REPORT_USER.
 
 ## Endpoints ORDS
 Base locale ORDS :

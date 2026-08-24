@@ -1,5 +1,6 @@
 -- Phase 3 - endpoints ORDS REST transactionnels
 -- A executer avec APP_USER apres la Phase 2.
+-- Le script sql/011_phase3_security_auth.sql doit etre applique avant ce script.
 
 ALTER SESSION SET CURRENT_SCHEMA = APP_USER;
 
@@ -44,7 +45,37 @@ BEGIN
         p_pattern => 'index',
         p_method => 'GET',
         p_source_type => ORDS.source_type_query_one_row,
-        p_source => q'[SELECT 'Gestion Commerciale Phase 3 API' AS name, '/dashboard,/customers,/products,/orders,/invoices,/payments,/audit' AS endpoints FROM dual]'
+        p_source => q'[
+SELECT
+    'Gestion Commerciale Phase 3 API' AS name,
+    '/dashboard,/customers,/products,/orders,/orders/:order_id/invoice,/invoices,/payments,/audit,/auth/session' AS endpoints
+FROM dual
+WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER') = 1
+]'
+    );
+
+    ORDS.DEFINE_TEMPLATE(
+        p_module_name => 'gestion-commerciale.phase3',
+        p_pattern => 'auth/session'
+    );
+    ORDS.DEFINE_HANDLER(
+        p_module_name => 'gestion-commerciale.phase3',
+        p_pattern => 'auth/session',
+        p_method => 'GET',
+        p_source_type => ORDS.source_type_query_one_row,
+        p_source => q'[
+SELECT
+    client_code,
+    client_name,
+    role_code,
+    status,
+    TO_CHAR(expires_at, 'YYYY-MM-DD"T"HH24:MI:SS') AS expires_at
+FROM app_api_clients
+WHERE api_key_hash = STANDARD_HASH(:X_API_KEY, 'SHA256')
+  AND status = 'ACTIVE'
+  AND (expires_at IS NULL OR expires_at >= SYSDATE)
+    AND pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER') = 1
+]'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -56,7 +87,17 @@ BEGIN
         p_pattern => 'dashboard',
         p_method => 'GET',
         p_source_type => ORDS.source_type_query_one_row,
-        p_source => 'SELECT active_customers, active_products, validated_orders, invoiced_amount, paid_amount, outstanding_amount FROM v_phase2_dashboard'
+        p_source => q'[
+SELECT
+    active_customers,
+    active_products,
+    validated_orders,
+    invoiced_amount,
+    paid_amount,
+    outstanding_amount
+FROM v_phase2_dashboard
+WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER,REPORT_USER') = 1
+]'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -68,7 +109,12 @@ BEGIN
         p_pattern => 'customers',
         p_method => 'GET',
         p_source_type => ORDS.source_type_query,
-        p_source => 'SELECT customer_id, customer_code, customer_name, customer_type, email, phone, status FROM customers ORDER BY customer_name'
+        p_source => q'[
+SELECT customer_id, customer_code, customer_name, customer_type, email, phone, status
+FROM customers
+WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 1
+ORDER BY customer_name
+]'
     );
     ORDS.DEFINE_HANDLER(
         p_module_name => 'gestion-commerciale.phase3',
@@ -80,6 +126,8 @@ DECLARE
     l_next_number NUMBER;
     l_customer_code VARCHAR2(30);
 BEGIN
+    pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER');
+
     SELECT COUNT(*) + 1 INTO l_next_number FROM customers;
     l_customer_code := NVL(:customer_code, 'CUST-' || LPAD(l_next_number, 3, '0'));
 
@@ -104,7 +152,12 @@ END;
         p_pattern => 'products',
         p_method => 'GET',
         p_source_type => ORDS.source_type_query,
-        p_source => 'SELECT product_id, product_code, product_name, unit_price, currency_code, status FROM products ORDER BY product_name'
+        p_source => q'[
+SELECT product_id, product_code, product_name, unit_price, currency_code, status
+FROM products
+WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 1
+ORDER BY product_name
+]'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -116,7 +169,12 @@ END;
         p_pattern => 'orders',
         p_method => 'GET',
         p_source_type => ORDS.source_type_query,
-        p_source => 'SELECT sales_order_id, order_number, customer_name, order_status, total_amount, billing_status FROM v_sales_pipeline ORDER BY sales_order_id'
+        p_source => q'[
+SELECT sales_order_id, order_number, customer_name, order_status, total_amount, billing_status
+FROM v_sales_pipeline
+WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,REPORT_USER') = 1
+ORDER BY sales_order_id
+]'
     );
     ORDS.DEFINE_HANDLER(
         p_module_name => 'gestion-commerciale.phase3',
@@ -130,6 +188,8 @@ DECLARE
     l_order_number sales_orders.order_number%TYPE;
     l_unit_price products.unit_price%TYPE;
 BEGIN
+    pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER');
+
     SELECT COUNT(*) + 1 INTO l_next_number FROM sales_orders;
     l_order_number := NVL(:order_number, 'ORD-' || LPAD(l_next_number, 3, '0'));
     SELECT unit_price INTO l_unit_price FROM products WHERE product_id = TO_NUMBER(:product_id);
@@ -156,6 +216,8 @@ DECLARE
     l_next_number NUMBER;
     l_invoice_number invoices.invoice_number%TYPE;
 BEGIN
+    pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,SALES_USER,FINANCE_USER');
+
     SELECT COUNT(*) + 1 INTO l_next_number FROM invoices;
     l_invoice_number := NVL(:invoice_number, 'INV-' || LPAD(l_next_number, 3, '0'));
     pkg_invoice.generate_invoice(TO_NUMBER(:order_id), l_invoice_number);
@@ -173,7 +235,12 @@ END;
         p_pattern => 'invoices',
         p_method => 'GET',
         p_source_type => ORDS.source_type_query,
-        p_source => 'SELECT invoice_id, invoice_number, sales_order_id, customer_name, total_amount, paid_amount, remaining_amount, invoice_status FROM v_invoice_balances ORDER BY invoice_id'
+        p_source => q'[
+SELECT invoice_id, invoice_number, sales_order_id, customer_name, total_amount, paid_amount, remaining_amount, invoice_status
+FROM v_invoice_balances
+WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER') = 1
+ORDER BY invoice_id
+]'
     );
 
     ORDS.DEFINE_TEMPLATE(
@@ -185,7 +252,12 @@ END;
         p_pattern => 'payments',
         p_method => 'GET',
         p_source_type => ORDS.source_type_query,
-        p_source => 'SELECT payment_id, invoice_id, payment_date, payment_amount, payment_method FROM payments ORDER BY payment_id'
+        p_source => q'[
+SELECT payment_id, invoice_id, payment_date, payment_amount, payment_method
+FROM payments
+WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,FINANCE_USER,REPORT_USER') = 1
+ORDER BY payment_id
+]'
     );
     ORDS.DEFINE_HANDLER(
         p_module_name => 'gestion-commerciale.phase3',
@@ -194,6 +266,8 @@ END;
         p_source_type => ORDS.source_type_plsql,
         p_source => q'[
 BEGIN
+    pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,FINANCE_USER');
+
     pkg_payment.record_payment(TO_NUMBER(:invoice_id), TO_NUMBER(:amount), NVL(:payment_method, 'TRANSFER'));
     :status_code := 201;
 END;
@@ -209,7 +283,13 @@ END;
         p_pattern => 'audit',
         p_method => 'GET',
         p_source_type => ORDS.source_type_query,
-        p_source => 'SELECT audit_log_id, module_name, action_name, actor_name, action_details, created_at FROM audit_log ORDER BY audit_log_id DESC FETCH FIRST 50 ROWS ONLY'
+        p_source => q'[
+SELECT audit_log_id, module_name, action_name, actor_name, action_details, created_at
+FROM audit_log
+WHERE pkg_security.require_access(:X_API_KEY, 'APP_ADMIN,REPORT_USER') = 1
+ORDER BY audit_log_id DESC
+FETCH FIRST 50 ROWS ONLY
+]'
     );
 
     COMMIT;
