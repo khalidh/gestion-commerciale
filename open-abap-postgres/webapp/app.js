@@ -66,7 +66,8 @@ sap.ui.define([
   'use strict';
 
   const apiUrl = '/api/customers';
-  const model = new JSONModel({ customers: [], products: [], orders: [], invoices: [], payments: [], audit: [], openInvoices: [], reports: { sales_by_product: [], open_invoice_balances: [] }, summary: {} });
+  const emptyData = () => ({ customers: [], products: [], orders: [], invoices: [], payments: [], audit: [], openInvoices: [], reports: { sales_by_product: [], payments_by_day: [], open_invoice_balances: [] }, summary: {}, access: { sales: false, finance: false }, user: null });
+  const model = new JSONModel(emptyData());
 
   function formatMoney(value, currency = 'EUR') {
     return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(Number(value || 0));
@@ -90,11 +91,16 @@ sap.ui.define([
     const response = await fetch(url, {
       ...options,
       headers: {
+        'X-GC-Request': '1',
         ...(options.body ? { 'Content-Type': 'application/json' } : {}),
         ...options.headers,
       },
     });
     if (!response.ok) {
+      if (response.status === 401 && !url.startsWith('/api/auth/')) {
+        model.setData(emptyData());
+        app.to(loginPage);
+      }
       const result = await response.json().catch(() => ({}));
       throw new Error(result.error || `HTTP ${response.status}`);
     }
@@ -122,14 +128,14 @@ sap.ui.define([
     model.setProperty('/payments', payments);
     model.setProperty('/audit', audit);
     model.setProperty('/reports', reports);
-    model.setProperty('/openInvoices', invoices.filter((invoice) => Number(invoice.remaining_amount) > 0));
+    model.setProperty('/openInvoices', invoices.filter((invoice) => invoice.invoice_status === 'OPEN' && Number(invoice.remaining_amount) > 0));
     model.setProperty('/summary', {
       customers: customers.length,
       products: products.length,
       orders: orders.length,
       invoices: invoices.length,
-      paid: payments.reduce((sum, payment) => sum + Number(payment.payment_amount || 0), 0),
-      outstanding: invoices.reduce((sum, invoice) => sum + Number(invoice.remaining_amount || 0), 0),
+      paid: payments.filter((payment) => payment.payment_status !== 'CANCELLED').reduce((sum, payment) => sum + Number(payment.payment_amount || 0), 0),
+      outstanding: invoices.filter((invoice) => invoice.invoice_status === 'OPEN').reduce((sum, invoice) => sum + Number(invoice.remaining_amount || 0), 0),
     });
     if (orderCustomerSelect && !orderCustomerSelect.getSelectedKey() && customers[0]) {
       orderCustomerSelect.setSelectedKey(customers[0].customer_id);
@@ -312,12 +318,14 @@ sap.ui.define([
                 icon: 'sap-icon://edit',
                 type: 'Transparent',
                 tooltip: 'Modifier',
+                enabled: '{/access/sales}',
                 press: (event) => editorDialog(event.getSource().getBindingContext().getObject()),
               }),
               new Button({
                 icon: 'sap-icon://delete',
                 type: 'Transparent',
                 tooltip: 'Supprimer',
+                enabled: '{/access/sales}',
                 press: (event) => {
                   const customer = event.getSource().getBindingContext().getObject();
                   MessageBox.confirm(`Supprimer ${customer.customer_name} ?`, {
@@ -388,12 +396,14 @@ sap.ui.define([
                 icon: 'sap-icon://edit',
                 type: 'Transparent',
                 tooltip: 'Modifier',
+                enabled: '{/access/sales}',
                 press: (event) => productDialog(event.getSource().getBindingContext().getObject()),
               }),
               new Button({
                 icon: 'sap-icon://delete',
                 type: 'Transparent',
                 tooltip: 'Supprimer',
+                enabled: '{/access/sales}',
                 press: (event) => {
                   const current = event.getSource().getBindingContext().getObject();
                   MessageBox.confirm(`Supprimer ${current.product_name} ?`, {
@@ -728,16 +738,17 @@ sap.ui.define([
                 icon: 'sap-icon://list',
                 type: 'Transparent',
                 tooltip: 'Gérer les lignes',
+                enabled: '{/access/sales}',
                 visible: { path: 'order_status', formatter: (status) => status === 'DRAFT' },
                 press: (event) => orderLineDialog(event.getSource().getBindingContext().getObject()),
               }),
-              new Button({ icon: 'sap-icon://accept', type: 'Transparent', tooltip: 'Valider la commande', enabled: { path: 'order_status', formatter: (status) => status === 'DRAFT' }, press: (event) => validateOrder(event.getSource().getBindingContext().getObject()) }),
-              new Button({ icon: 'sap-icon://decline', type: 'Reject', tooltip: 'Annuler la commande', visible: { path: 'order_status', formatter: (status) => status === 'DRAFT' }, press: (event) => {
+              new Button({ icon: 'sap-icon://accept', type: 'Transparent', tooltip: 'Valider la commande', enabled: { parts: [{ path: '/access/sales' }, { path: 'order_status' }], formatter: (allowed, status) => allowed && status === 'DRAFT' }, press: (event) => validateOrder(event.getSource().getBindingContext().getObject()) }),
+              new Button({ icon: 'sap-icon://decline', type: 'Reject', tooltip: 'Annuler la commande', enabled: '{/access/sales}', visible: { path: 'order_status', formatter: (status) => status === 'DRAFT' }, press: (event) => {
                 const order = event.getSource().getBindingContext().getObject();
                 MessageBox.confirm(`Annuler ${order.order_number} ?`, { onClose: (action) => { if (action === MessageBox.Action.OK) cancelOrder(order); } });
               } }),
-              new Button({ icon: 'sap-icon://sales-document', type: 'Transparent', tooltip: 'Générer une facture', enabled: { parts: [{ path: 'order_status' }, { path: 'invoice_id' }], formatter: (status, invoiceId) => status === 'VALIDATED' && !invoiceId }, press: (event) => generateInvoice(event.getSource().getBindingContext().getObject()) }),
-              new Button({ icon: 'sap-icon://shipping-status', type: 'Transparent', tooltip: 'Marquer livrée', visible: { path: 'order_status', formatter: (status) => status === 'VALIDATED' }, press: (event) => deliverOrder(event.getSource().getBindingContext().getObject()) }),
+              new Button({ icon: 'sap-icon://sales-document', type: 'Transparent', tooltip: 'Générer une facture', enabled: { parts: [{ path: '/access/finance' }, { path: 'order_status' }, { path: 'invoice_id' }], formatter: (allowed, status, invoiceId) => allowed && status === 'VALIDATED' && !invoiceId }, press: (event) => generateInvoice(event.getSource().getBindingContext().getObject()) }),
+              new Button({ icon: 'sap-icon://shipping-status', type: 'Transparent', tooltip: 'Marquer livrée', enabled: '{/access/sales}', visible: { path: 'order_status', formatter: (status) => status === 'VALIDATED' }, press: (event) => deliverOrder(event.getSource().getBindingContext().getObject()) }),
             ],
           }),
         ],
@@ -772,6 +783,7 @@ sap.ui.define([
           new Button({
             text: 'Annuler',
             type: 'Reject',
+            enabled: '{/access/finance}',
             visible: { parts: [{ path: 'invoice_status' }, { path: 'paid_amount' }], formatter: (status, paid) => status === 'OPEN' && Number(paid) === 0 },
             press: (event) => {
               const invoice = event.getSource().getBindingContext().getObject();
@@ -810,6 +822,7 @@ sap.ui.define([
                 icon: 'sap-icon://accept',
                 type: 'Transparent',
                 tooltip: 'Rapprocher le paiement',
+                enabled: '{/access/finance}',
                 visible: { path: 'payment_status', formatter: (status) => status === 'REGISTERED' },
                 press: (event) => reconcilePayment(event.getSource().getBindingContext().getObject()),
               }),
@@ -817,6 +830,7 @@ sap.ui.define([
                 icon: 'sap-icon://decline',
                 type: 'Reject',
                 tooltip: 'Annuler le paiement',
+                enabled: '{/access/finance}',
                 visible: { path: 'payment_status', formatter: (status) => status !== 'CANCELLED' },
                 press: (event) => {
                   const payment = event.getSource().getBindingContext().getObject();
@@ -967,7 +981,7 @@ sap.ui.define([
         new Label({ text: 'Client' }), orderCustomerSelect,
         new Label({ text: 'Produit' }), orderProductSelect,
         new Label({ text: 'Quantité' }), quantityInput,
-        new Button({ text: 'Créer commande', icon: 'sap-icon://add', type: 'Emphasized', press: createOrder }),
+        new Button({ text: 'Créer commande', icon: 'sap-icon://add', type: 'Emphasized', enabled: '{/access/sales}', press: createOrder }),
       ],
     })],
   }).addStyleClass('customerFormPanel');
@@ -980,7 +994,7 @@ sap.ui.define([
         new Label({ text: 'Facture ouverte' }), invoiceSelect,
         new Label({ text: 'Montant' }), paymentAmountInput,
         new Label({ text: 'Mode' }), paymentMethodSelect,
-        new Button({ text: 'Enregistrer paiement', icon: 'sap-icon://money-bills', type: 'Emphasized', press: recordPayment }),
+        new Button({ text: 'Enregistrer paiement', icon: 'sap-icon://money-bills', type: 'Emphasized', enabled: '{/access/finance}', press: recordPayment }),
       ],
     })],
   }).addStyleClass('customerFormPanel');
@@ -1005,6 +1019,19 @@ sap.ui.define([
     title: 'Gestion commerciale',
     secondTitle: 'Clients · OpenABAP / PostgreSQL',
     showNavButton: false,
+    additionalContent: [
+      new Text({ text: '{/user/username}' }),
+      new Text({ text: '{/user/role}' }),
+      new Button({ icon: 'sap-icon://log', tooltip: 'Se déconnecter', type: 'Transparent', press: async () => {
+        try {
+          await request('/api/auth/logout', { method: 'POST', body: '{}' });
+          model.setData(emptyData());
+          app.to(loginPage);
+        } catch (error) {
+          showError(error);
+        }
+      } }),
+    ],
   });
 
   const page = new Page({
@@ -1033,6 +1060,7 @@ sap.ui.define([
                 text: 'Ajouter',
                 icon: 'sap-icon://add',
                 type: 'Emphasized',
+                enabled: '{/access/sales}',
                 press: () => {
                   const customerName = sap.ui.getCore().byId('newCustomerName').getValue();
                   if (!customerName.trim()) {
@@ -1075,6 +1103,7 @@ sap.ui.define([
                     text: 'Nouveau produit',
                     icon: 'sap-icon://add',
                     type: 'Emphasized',
+                    enabled: '{/access/sales}',
                     press: () => productDialog(),
                   }),
                   new Button({ icon: 'sap-icon://refresh', type: 'Transparent', tooltip: 'Actualiser', press: () => refresh().catch(showError) }),
@@ -1161,9 +1190,64 @@ sap.ui.define([
     ],
   }).addStyleClass('customerPage');
 
-  const app = new App({ pages: [page] });
+  const usernameInput = new Input({ width: '100%', maxLength: 80, placeholder: 'Identifiant' });
+  const passwordInput = new Input({ width: '100%', type: 'Password', placeholder: 'Mot de passe', maxLength: 1024 });
+  const loginMessage = new MessageStrip({ visible: false, type: 'Error', showIcon: true });
+  const loginButton = new Button({ text: 'Se connecter', icon: 'sap-icon://log', type: 'Emphasized', press: login });
+  passwordInput.attachSubmit(login);
+  usernameInput.attachSubmit(() => passwordInput.focus());
+  const loginPage = new Page({
+    title: 'Gestion commerciale',
+    content: [new VBox({
+      width: '80%',
+      items: [
+        new Title({ text: 'Connexion', level: 'H2' }),
+        new Label({ text: 'Identifiant', labelFor: usernameInput }), usernameInput,
+        new Label({ text: 'Mot de passe', labelFor: passwordInput }), passwordInput,
+        loginMessage, loginButton,
+      ],
+    }).addStyleClass('loginForm')],
+  });
+
+  function setUser(user) {
+    model.setProperty('/user', user);
+    model.setProperty('/access', {
+      sales: ['APP_ADMIN', 'SALES_USER'].includes(user.role),
+      finance: ['APP_ADMIN', 'FINANCE_USER'].includes(user.role),
+    });
+  }
+
+  async function login() {
+    if (!loginButton.getEnabled()) return;
+    loginButton.setEnabled(false);
+    loginMessage.setVisible(false);
+    try {
+      const user = await request('/api/auth/login', {
+        method: 'POST', body: JSON.stringify({ username: usernameInput.getValue().trim(), password: passwordInput.getValue() }),
+      });
+      passwordInput.setValue('');
+      setUser(user);
+      await refresh();
+      app.to(page);
+    } catch (error) {
+      passwordInput.setValue('');
+      loginMessage.setText(error.message === 'invalid_credentials' ? 'Identifiant ou mot de passe incorrect.' :
+        error.message === 'login_rate_limited' ? 'Trop de tentatives. Réessaie dans 15 minutes.' : error.message);
+      loginMessage.setVisible(true);
+    } finally {
+      loginButton.setEnabled(true);
+    }
+  }
+
+  const app = new App({ pages: [loginPage, page], initialPage: loginPage.getId() });
   app.setModel(model);
   app.placeAt('content');
 
-  refresh().catch(showError);
+  request('/api/auth/session').then(async (user) => {
+    setUser(user);
+    await refresh();
+    app.to(page);
+  }).catch((error) => {
+    if (error.message !== 'authentication_required') showError(error);
+  });
 });

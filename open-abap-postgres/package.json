@@ -9,6 +9,8 @@
     "setup": "node scripts/setup-postgres.mjs",
     "demo": "node src/run-demo.mjs",
     "test:service": "node scripts/test-customer-service.mjs",
+    "test:security": "node scripts/test-security.mjs",
+    "user": "node scripts/manage-user.mjs",
     "start": "node server.mjs"
   },
   "dependencies": {

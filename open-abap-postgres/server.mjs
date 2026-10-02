@@ -1,10 +1,12 @@
 import process from 'node:process';
 import { randomUUID } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { Pool } from 'pg';
 import { PostgresDatabaseClient } from '@abaplint/database-pg';
 import { createCustomerService, ensurePostgresSchema } from './src/customer-service.mjs';
+import { createSecurity } from './src/security.mjs';
 
 const envPath = fileURLToPath(new URL('./.env', import.meta.url));
 try {
@@ -164,7 +166,11 @@ async function listInvoices(invoiceId) {
 }
 
 const app = express();
+const requestContext = new AsyncLocalStorage();
+const security = await createSecurity(pool);
 app.use(express.json({ limit: '32kb' }));
+app.use('/api/auth', security.router);
+app.use('/api', security.authorize, (request, _response, next) => requestContext.run(request.user, next));
 app.use(express.static(fileURLToPath(new URL('./webapp/', import.meta.url))));
 
 async function findCustomer(customerId) {
@@ -274,7 +280,7 @@ async function writeAudit(moduleName, actionName, actionDetails) {
     audit_id: randomUUID(),
     module_name: moduleName,
     action_name: actionName,
-    actor_name: 'openabap_app',
+    actor_name: requestContext.getStore()?.username || 'openabap_app',
     action_details: actionDetails,
   });
   if (result !== 0) {
