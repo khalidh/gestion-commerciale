@@ -31,6 +31,24 @@ function readSecret(prompt) {
   });
 }
 
+  async function readPasswordInput() {
+    let input = '';
+    process.stdin.setEncoding('utf8');
+    for await (const chunk of process.stdin) {
+      input += chunk;
+      if (input.length > 16384) throw new Error('Saisie trop longue.');
+    }
+    try {
+      const payload = JSON.parse(input);
+      if (typeof payload?.password !== 'string' || typeof payload?.confirmation !== 'string') {
+        throw new Error();
+      }
+      return payload;
+    } catch {
+      throw new Error('Saisie du mot de passe invalide.');
+    }
+  }
+
 const [username, role] = process.argv.slice(2);
 if (!/^[a-zA-Z0-9._-]{3,80}$/.test(username || '')
     || !['APP_ADMIN', 'SALES_USER', 'FINANCE_USER', 'REPORT_USER', '--disable'].includes(role)) {
@@ -46,8 +64,12 @@ try {
     await pool.query('DELETE FROM gc_auth_sessions WHERE username = $1', [username]);
     console.log(`Compte ${username} desactive; sessions revoquees.`);
   } else {
-    const password = await readSecret(`Mot de passe du compte ${username} (12 caracteres minimum): `);
-    const confirmation = await readSecret('Confirmez le mot de passe: ');
+      const { password, confirmation } = process.argv.includes('--stdin-json')
+        ? await readPasswordInput()
+        : {
+          password: await readSecret(`Mot de passe du compte ${username} (12 caracteres minimum): `),
+          confirmation: await readSecret('Confirmez le mot de passe: '),
+        };
     if (password !== confirmation) throw new Error('Les mots de passe ne correspondent pas.');
     await saveUser(pool, username, password, role);
     console.log(`Compte ${username} cree ou actualise (${role}); anciennes sessions revoquees.`);

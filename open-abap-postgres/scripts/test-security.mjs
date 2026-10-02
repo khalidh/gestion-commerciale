@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { Pool } from 'pg';
@@ -19,6 +20,13 @@ try {
   for (const role of ['APP_ADMIN', 'SALES_USER', 'FINANCE_USER', 'REPORT_USER']) {
     await saveUser(pool, role.toLowerCase(), password, role);
   }
+  const windowPassword = `${password}\u00e9`;
+  await new Promise((resolve, reject) => {
+    const child = execFile(process.execPath, [
+      fileURLToPath(new URL('./manage-user.mjs', import.meta.url)), 'window_user', 'REPORT_USER', '--stdin-json',
+    ], { env: { ...process.env, PGOPTIONS: `-c search_path=${schema}` } }, (error) => error ? reject(error) : resolve());
+    child.stdin.end(JSON.stringify({ password: windowPassword, confirmation: windowPassword }));
+  });
   const stored = await pool.query('SELECT password_hash FROM gc_auth_users');
   assert(stored.rows.every((row) => row.password_hash.startsWith('scrypt:') && !row.password_hash.includes(password)));
   const app = express();
@@ -35,6 +43,7 @@ try {
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   assert.equal((await send('/api/customers')).status, 401);
+  assert.equal((await send('/api/auth/login', 'POST', '', { username: 'window_user', password: windowPassword })).status, 200);
   assert.equal((await send('/api/auth/login', 'POST', '', { username: 'app_admin', password: 'incorrect' })).status, 401);
   assert.equal((await send('/api/auth/login', 'POST', '', { username: 'app_admin', password }, { Origin: 'https://other.example' })).status, 403);
   const cookies = {};

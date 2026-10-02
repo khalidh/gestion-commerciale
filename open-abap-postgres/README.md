@@ -24,6 +24,8 @@ The setup command asks for the local PostgreSQL `postgres` password without echo
 
 All commercial API routes require a signed-in account. There is no default account or password. `npm run user -- admin APP_ADMIN` asks twice for a password directly in the terminal without echoing it (12 characters minimum). Only a salted scrypt hash is stored in PostgreSQL. Use the same command to reset a password or change a role; existing sessions are revoked. `npm run user -- username --disable` disables an account and revokes its sessions. These commands require local database access and are not exposed through HTTP.
 
+On Windows, run `./scripts/admin-password-window.ps1` from PowerShell for a local dialog with two masked password fields. It creates or resets the `admin` account with `APP_ADMIN` permissions. The password is passed to the existing account command through a local UTF-8 stdin pipe, not through command-line arguments, files or chat. Cancelling the dialog does not change the account.
+
 - `APP_ADMIN`: all commercial operations.
 - `SALES_USER`: customer/product management and order creation, editing, validation, delivery and cancellation.
 - `FINANCE_USER`: invoice generation/cancellation and payment registration, reconciliation and cancellation.
