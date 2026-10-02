@@ -39,6 +39,12 @@ CLASS zcl_customer_service DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CLASS-METHODS add_order_line
       IMPORTING order_id TYPE string line_id TYPE string product_id TYPE string quantity TYPE price_type
       RETURNING VALUE(result) TYPE i.
+    CLASS-METHODS update_order_line
+      IMPORTING order_id TYPE string line_id TYPE string product_id TYPE string quantity TYPE price_type
+      RETURNING VALUE(result) TYPE i.
+    CLASS-METHODS delete_order_line
+      IMPORTING order_id TYPE string line_id TYPE string
+      RETURNING VALUE(result) TYPE i.
     CLASS-METHODS generate_invoice
       IMPORTING invoice_id TYPE string invoice_number TYPE string order_id TYPE string
       RETURNING VALUE(result) TYPE i.
@@ -48,6 +54,12 @@ CLASS zcl_customer_service DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CLASS-METHODS record_payment
       IMPORTING payment_id TYPE string invoice_id TYPE string
         payment_amount TYPE price_type payment_method TYPE string
+      RETURNING VALUE(result) TYPE i.
+    CLASS-METHODS reconcile_payment
+      IMPORTING payment_id TYPE string
+      RETURNING VALUE(result) TYPE i.
+    CLASS-METHODS cancel_payment
+      IMPORTING payment_id TYPE string
       RETURNING VALUE(result) TYPE i.
     CLASS-METHODS write_audit
       IMPORTING audit_id TYPE string module_name TYPE string action_name TYPE string
@@ -210,6 +222,80 @@ CLASS zcl_customer_service IMPLEMENTATION.
     result = sy-subrc.
   ENDMETHOD.
 
+  METHOD update_order_line.
+    DATA sales_order TYPE zgc_sales_order.
+    DATA product TYPE zgc_product.
+    DATA order_line TYPE zgc_sales_order_line.
+    DATA order_total TYPE price_type.
+    DATA line_amount TYPE price_type.
+    SELECT SINGLE * FROM zgc_sales_order INTO @sales_order WHERE sales_order_id = @order_id.
+    IF sy-subrc <> 0 OR sales_order-order_status <> 'DRAFT' OR quantity <= 0.
+      result = 4.
+      RETURN.
+    ENDIF.
+    SELECT SINGLE * FROM zgc_sales_order_line INTO @order_line
+      WHERE sales_order_line_id = @line_id AND sales_order_id = @order_id.
+    IF sy-subrc <> 0.
+      result = 4.
+      RETURN.
+    ENDIF.
+    SELECT SINGLE * FROM zgc_product INTO @product
+      WHERE product_id = @product_id AND status = 'ACTIVE'.
+    IF sy-subrc <> 0.
+      result = 4.
+      RETURN.
+    ENDIF.
+    line_amount = product-unit_price * quantity.
+    DELETE FROM zgc_sales_order_line
+      WHERE sales_order_line_id = @line_id AND sales_order_id = @order_id.
+    IF sy-subrc <> 0.
+      result = sy-subrc.
+      RETURN.
+    ENDIF.
+    order_line-sales_order_line_id = line_id.
+    order_line-sales_order_id = order_id.
+    order_line-product_id = product_id.
+    order_line-quantity = quantity.
+    order_line-unit_price = product-unit_price.
+    order_line-line_amount = line_amount.
+    INSERT zgc_sales_order_line FROM order_line.
+    IF sy-subrc <> 0.
+      result = sy-subrc.
+      RETURN.
+    ENDIF.
+    SELECT SUM( line_amount ) FROM zgc_sales_order_line
+      INTO @order_total WHERE sales_order_id = @order_id.
+    UPDATE zgc_sales_order SET total_amount = @order_total WHERE sales_order_id = @order_id.
+    result = sy-subrc.
+  ENDMETHOD.
+
+  METHOD delete_order_line.
+    DATA sales_order TYPE zgc_sales_order.
+    DATA line_count TYPE i.
+    DATA order_total TYPE price_type.
+    SELECT SINGLE * FROM zgc_sales_order INTO @sales_order WHERE sales_order_id = @order_id.
+    IF sy-subrc <> 0 OR sales_order-order_status <> 'DRAFT'.
+      result = 4.
+      RETURN.
+    ENDIF.
+    SELECT COUNT( * ) FROM zgc_sales_order_line
+      INTO @line_count WHERE sales_order_id = @order_id.
+    IF line_count <= 1.
+      result = 4.
+      RETURN.
+    ENDIF.
+    DELETE FROM zgc_sales_order_line
+      WHERE sales_order_line_id = @line_id AND sales_order_id = @order_id.
+    IF sy-subrc <> 0.
+      result = sy-subrc.
+      RETURN.
+    ENDIF.
+    SELECT SUM( line_amount ) FROM zgc_sales_order_line
+      INTO @order_total WHERE sales_order_id = @order_id.
+    UPDATE zgc_sales_order SET total_amount = @order_total WHERE sales_order_id = @order_id.
+    result = sy-subrc.
+  ENDMETHOD.
+
   METHOD generate_invoice.
     DATA sales_order TYPE zgc_sales_order.
     DATA existing_invoice TYPE zgc_invoice.
@@ -257,7 +343,7 @@ CLASS zcl_customer_service IMPLEMENTATION.
     DATA paid_amount TYPE price_type.
     DATA payment TYPE zgc_payment.
     SELECT SINGLE * FROM zgc_invoice INTO @invoice WHERE invoice_id = @invoice_id.
-    IF sy-subrc <> 0 OR payment_amount <= 0.
+    IF sy-subrc <> 0 OR invoice-invoice_status <> 'OPEN' OR payment_amount <= 0.
       result = 4.
       RETURN.
     ENDIF.
@@ -273,9 +359,40 @@ CLASS zcl_customer_service IMPLEMENTATION.
       RETURN.
     ENDIF.
     SELECT SUM( payment_amount ) FROM zgc_payment
-      INTO @paid_amount WHERE invoice_id = @invoice_id.
+      INTO @paid_amount WHERE invoice_id = @invoice_id AND payment_status <> 'CANCELLED'.
     IF paid_amount >= invoice-total_amount.
       UPDATE zgc_invoice SET invoice_status = 'PAID' WHERE invoice_id = @invoice_id.
+    ENDIF.
+    result = 0.
+  ENDMETHOD.
+
+  METHOD reconcile_payment.
+    UPDATE zgc_payment
+      SET payment_status = 'RECONCILED'
+      WHERE payment_id = @payment_id AND payment_status = 'REGISTERED'.
+    result = sy-subrc.
+  ENDMETHOD.
+
+  METHOD cancel_payment.
+    DATA payment TYPE zgc_payment.
+    DATA invoice TYPE zgc_invoice.
+    DATA paid_amount TYPE price_type.
+    SELECT SINGLE * FROM zgc_payment INTO @payment WHERE payment_id = @payment_id.
+    IF sy-subrc <> 0 OR payment-payment_status = 'CANCELLED'.
+      result = 4.
+      RETURN.
+    ENDIF.
+    SELECT SINGLE * FROM zgc_invoice INTO @invoice WHERE invoice_id = @payment-invoice_id.
+    UPDATE zgc_payment SET payment_status = 'CANCELLED' WHERE payment_id = @payment_id.
+    IF sy-subrc <> 0.
+      result = sy-subrc.
+      RETURN.
+    ENDIF.
+    SELECT SUM( payment_amount ) FROM zgc_payment
+      INTO @paid_amount
+      WHERE invoice_id = @payment-invoice_id AND payment_status <> 'CANCELLED'.
+    IF paid_amount < invoice-total_amount.
+      UPDATE zgc_invoice SET invoice_status = 'OPEN' WHERE invoice_id = @payment-invoice_id.
     ENDIF.
     result = 0.
   ENDMETHOD.

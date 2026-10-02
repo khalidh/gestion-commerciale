@@ -108,6 +108,29 @@ async function listOrders(orderId) {
   return result.rows.map((order) => ({ ...order, total_amount: Number(order.total_amount) }));
 }
 
+async function listOrderLines(orderId) {
+  const result = await pool.query(
+    `SELECT rtrim(l.sales_order_line_id) AS sales_order_line_id,
+            rtrim(l.sales_order_id) AS sales_order_id,
+            rtrim(l.product_id) AS product_id,
+            rtrim(p.product_name) AS product_name,
+            l.quantity,
+            l.unit_price,
+            l.line_amount
+       FROM zgc_sales_order_line l
+       JOIN zgc_product p ON p.product_id = l.product_id
+      WHERE rtrim(l.sales_order_id) = $1
+      ORDER BY rtrim(l.sales_order_line_id)`,
+    [orderId],
+  );
+  return result.rows.map((line) => ({
+    ...line,
+    quantity: Number(line.quantity),
+    unit_price: Number(line.unit_price),
+    line_amount: Number(line.line_amount),
+  }));
+}
+
 async function listInvoices(invoiceId) {
   const result = await pool.query(
     `SELECT rtrim(i.invoice_id) AS invoice_id,
@@ -118,7 +141,7 @@ async function listInvoices(invoiceId) {
             rtrim(i.invoice_date) AS invoice_date,
             rtrim(i.invoice_status) AS invoice_status,
             i.total_amount,
-            COALESCE(SUM(p.payment_amount), 0) AS paid_amount
+            COALESCE(SUM(p.payment_amount) FILTER (WHERE rtrim(p.payment_status) <> 'CANCELLED'), 0) AS paid_amount
        FROM zgc_invoice i
        JOIN zgc_customer c ON c.customer_id = i.customer_id
        LEFT JOIN zgc_payment p ON p.invoice_id = i.invoice_id
@@ -442,6 +465,58 @@ app.post('/api/orders/:id/lines', async (request, response, next) => {
   }
 });
 
+app.get('/api/orders/:id/lines', async (request, response, next) => {
+  try {
+    const order = await pool.query('SELECT 1 FROM zgc_sales_order WHERE rtrim(sales_order_id) = $1', [request.params.id]);
+    if (order.rowCount === 0) {
+      return response.status(404).json({ error: 'order_not_found' });
+    }
+    response.json(await listOrderLines(request.params.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/orders/:id/lines/:lineId', async (request, response, next) => {
+  try {
+    const orderId = request.params.id;
+    const lineId = request.params.lineId;
+    const productId = String(request.body?.product_id ?? '').trim();
+    const quantity = Number(request.body?.quantity);
+    if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
+      return response.status(400).json({ error: 'product_and_positive_quantity_required' });
+    }
+    const result = await customerService.updateOrderLine({
+      order_id: orderId,
+      line_id: lineId,
+      product_id: productId,
+      quantity,
+    });
+    if (result !== 0) {
+      return response.status(409).json({ error: 'only_existing_draft_order_lines_can_be_updated' });
+    }
+    await writeAudit('ORDER', 'UPDATE_LINE', `sales_order_id=${orderId}; line_id=${lineId}; product_id=${productId}; quantity=${quantity}`);
+    response.json({ order: (await listOrders(orderId))[0], lines: await listOrderLines(orderId) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/orders/:id/lines/:lineId', async (request, response, next) => {
+  try {
+    const orderId = request.params.id;
+    const lineId = request.params.lineId;
+    const result = await customerService.deleteOrderLine(orderId, lineId);
+    if (result !== 0) {
+      return response.status(409).json({ error: 'only_draft_orders_with_multiple_lines_can_remove_a_line' });
+    }
+    await writeAudit('ORDER', 'DELETE_LINE', `sales_order_id=${orderId}; line_id=${lineId}`);
+    response.json({ order: (await listOrders(orderId))[0], lines: await listOrderLines(orderId) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post('/api/orders/:id/validate', async (request, response, next) => {
   try {
     const result = await customerService.validateOrder(request.params.id);
@@ -526,8 +601,11 @@ app.post('/api/invoices/:id/payments', async (request, response, next) => {
       return response.status(404).json({ error: 'invoice_not_found' });
     }
     const paymentInput = amountInput(request.body);
-    if (invoice.remaining_amount <= 0) {
-      return response.status(409).json({ error: 'invoice_already_paid' });
+    if (invoice.invoice_status !== 'OPEN' || invoice.remaining_amount <= 0) {
+      return response.status(409).json({ error: 'invoice_not_open_for_payment' });
+    }
+    if (paymentInput.amount > invoice.remaining_amount) {
+      return response.status(409).json({ error: 'payment_exceeds_invoice_balance' });
     }
     const result = await customerService.recordPayment({
       payment_id: randomUUID(),
@@ -567,6 +645,46 @@ app.get('/api/payments', async (_request, response, next) => {
   }
 });
 
+app.post('/api/payments/:id/reconcile', async (request, response, next) => {
+  try {
+    const result = await customerService.reconcilePayment(request.params.id);
+    if (result !== 0) {
+      return response.status(409).json({ error: 'only_registered_payments_can_be_reconciled' });
+    }
+    await writeAudit('PAYMENT', 'RECONCILE', `payment_id=${request.params.id}`);
+    const payment = await pool.query(
+      `SELECT rtrim(payment_id) AS payment_id, rtrim(invoice_id) AS invoice_id,
+              payment_amount, rtrim(payment_method) AS payment_method,
+              rtrim(payment_status) AS payment_status
+         FROM zgc_payment WHERE rtrim(payment_id) = $1`,
+      [request.params.id],
+    );
+    response.json({ ...payment.rows[0], payment_amount: Number(payment.rows[0].payment_amount) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/payments/:id/cancel', async (request, response, next) => {
+  try {
+    const result = await customerService.cancelPayment(request.params.id);
+    if (result !== 0) {
+      return response.status(409).json({ error: 'payment_not_cancellable' });
+    }
+    await writeAudit('PAYMENT', 'CANCEL', `payment_id=${request.params.id}`);
+    const payment = await pool.query(
+      `SELECT rtrim(payment_id) AS payment_id, rtrim(invoice_id) AS invoice_id,
+              payment_amount, rtrim(payment_method) AS payment_method,
+              rtrim(payment_status) AS payment_status
+         FROM zgc_payment WHERE rtrim(payment_id) = $1`,
+      [request.params.id],
+    );
+    response.json({ ...payment.rows[0], payment_amount: Number(payment.rows[0].payment_amount) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/api/audit', async (_request, response, next) => {
   try {
     const result = await pool.query(
@@ -591,8 +709,8 @@ app.get('/api/dashboard', async (_request, response, next) => {
       pool.query("SELECT COUNT(*)::int AS count FROM zgc_customer WHERE rtrim(status) = 'ACTIVE'"),
       pool.query("SELECT COUNT(*)::int AS count FROM zgc_product WHERE rtrim(status) = 'ACTIVE'"),
       pool.query("SELECT COUNT(*)::int AS count FROM zgc_sales_order WHERE rtrim(order_status) = 'VALIDATED'"),
-      pool.query('SELECT COALESCE(SUM(total_amount), 0) AS total FROM zgc_invoice'),
-      pool.query('SELECT COALESCE(SUM(payment_amount), 0) AS total FROM zgc_payment'),
+      pool.query("SELECT COALESCE(SUM(total_amount), 0) AS total FROM zgc_invoice WHERE rtrim(invoice_status) <> 'CANCELLED'"),
+      pool.query("SELECT COALESCE(SUM(payment_amount), 0) AS total FROM zgc_payment WHERE rtrim(payment_status) <> 'CANCELLED'"),
     ]);
     response.json({
       active_customers: customers.rows[0].count,
@@ -601,6 +719,37 @@ app.get('/api/dashboard', async (_request, response, next) => {
       invoiced_amount: Number(invoices.rows[0].total),
       paid_amount: Number(payments.rows[0].total),
       outstanding_amount: Number(invoices.rows[0].total) - Number(payments.rows[0].total),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/reports', async (_request, response, next) => {
+  try {
+    const [sales, invoices] = await Promise.all([
+      pool.query(
+        `SELECT rtrim(p.product_id) AS product_id,
+                rtrim(p.product_code) AS product_code,
+                rtrim(p.product_name) AS product_name,
+                SUM(l.quantity) AS quantity_sold,
+                SUM(l.line_amount) AS revenue
+           FROM zgc_sales_order_line l
+           JOIN zgc_sales_order o ON o.sales_order_id = l.sales_order_id
+           JOIN zgc_product p ON p.product_id = l.product_id
+          WHERE rtrim(o.order_status) IN ('VALIDATED', 'DELIVERED')
+          GROUP BY p.product_id, p.product_code, p.product_name
+          ORDER BY SUM(l.line_amount) DESC, rtrim(p.product_name)`,
+      ),
+      listInvoices(),
+    ]);
+    response.json({
+      sales_by_product: sales.rows.map((row) => ({
+        ...row,
+        quantity_sold: Number(row.quantity_sold),
+        revenue: Number(row.revenue),
+      })),
+      open_invoice_balances: invoices.filter((invoice) => invoice.invoice_status === 'OPEN' && invoice.remaining_amount > 0),
     });
   } catch (error) {
     next(error);

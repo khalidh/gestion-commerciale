@@ -98,6 +98,16 @@ export async function createCustomerService(database) {
       await database.commit();
       return result;
     },
+    async updateOrderLine(line) {
+      const result = nativeValue(await service.update_order_line(line));
+      await database.commit();
+      return result;
+    },
+    async deleteOrderLine(orderId, lineId) {
+      const result = nativeValue(await service.delete_order_line({ order_id: orderId, line_id: lineId }));
+      await database.commit();
+      return result;
+    },
     async generateInvoice(invoice) {
       const result = nativeValue(await service.generate_invoice(invoice));
       await database.commit();
@@ -110,6 +120,16 @@ export async function createCustomerService(database) {
     },
     async recordPayment(payment) {
       const result = nativeValue(await service.record_payment(payment));
+      await database.commit();
+      return result;
+    },
+    async reconcilePayment(paymentId) {
+      const result = nativeValue(await service.reconcile_payment({ payment_id: paymentId }));
+      await database.commit();
+      return result;
+    },
+    async cancelPayment(paymentId) {
+      const result = nativeValue(await service.cancel_payment({ payment_id: paymentId }));
       await database.commit();
       return result;
     },

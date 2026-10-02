@@ -17,9 +17,11 @@ const service = await createCustomerService(database);
 const customerId = 'test-customer-openabap';
 const orderId = randomUUID();
 const lineId = randomUUID();
+const extraLineId = randomUUID();
 const invoiceId = randomUUID();
 const firstPaymentId = randomUUID();
 const secondPaymentId = randomUUID();
+const thirdPaymentId = randomUUID();
 const auditId = randomUUID();
 const cancelledOrderId = randomUUID();
 const cancelledInvoiceOrderId = randomUUID();
@@ -148,7 +150,7 @@ try {
   });
   const extraLineCreated = await service.addOrderLine({
     order_id: orderId,
-    line_id: randomUUID(),
+    line_id: extraLineId,
     product_id: extraProduct.rows[0].id,
     quantity: 1,
   });
@@ -163,6 +165,35 @@ try {
       || extraLineCreated !== 0 || Number(orderStatus.rows[0]?.total_amount) !== expectedOrderTotal
       || orderStatus.rows[0]?.line_count !== 2) {
     throw new Error(`La commande ABAP multi-lignes a échoué (create=${orderCreated}, add=${extraLineCreated}).`);
+  }
+
+  const updatedLine = await service.updateOrderLine({
+    order_id: orderId,
+    line_id: extraLineId,
+    product_id: extraProduct.rows[0].id,
+    quantity: 2,
+  });
+  const updatedOrderTotal = orderTotal + (Number(extraProduct.rows[0].unit_price) * 2);
+  const orderAfterLineUpdate = await pool.query(
+    'SELECT total_amount FROM zgc_sales_order WHERE rtrim(sales_order_id) = $1',
+    [orderId],
+  );
+  if (updatedLine !== 0 || Number(orderAfterLineUpdate.rows[0]?.total_amount) !== updatedOrderTotal) {
+    throw new Error(`La modification de ligne ABAP n’a pas recalculé le total (sy-subrc=${updatedLine}).`);
+  }
+
+  const deletedLine = await service.deleteOrderLine(orderId, extraLineId);
+  const lastLineDelete = await service.deleteOrderLine(orderId, lineId);
+  const orderAfterLineDelete = await pool.query(
+    `SELECT total_amount, (SELECT COUNT(*)::int FROM zgc_sales_order_line l
+       WHERE rtrim(l.sales_order_id) = $1) AS line_count
+       FROM zgc_sales_order WHERE rtrim(sales_order_id) = $1`,
+    [orderId],
+  );
+  if (deletedLine !== 0 || lastLineDelete === 0
+      || Number(orderAfterLineDelete.rows[0]?.total_amount) !== orderTotal
+      || orderAfterLineDelete.rows[0]?.line_count !== 1) {
+    throw new Error('La suppression de ligne ABAP ou la protection de la dernière ligne a échoué.');
   }
 
   const orderValidated = await service.validateOrder(orderId);
@@ -189,6 +220,14 @@ try {
   if (firstPayment !== 0) {
     throw new Error('Le premier paiement ABAP a échoué.');
   }
+  const reconciledPayment = await service.reconcilePayment(firstPaymentId);
+  const paymentAfterReconcile = await pool.query(
+    'SELECT rtrim(payment_status) AS status FROM zgc_payment WHERE rtrim(payment_id) = $1',
+    [firstPaymentId],
+  );
+  if (reconciledPayment !== 0 || paymentAfterReconcile.rows[0]?.status !== 'RECONCILED') {
+    throw new Error('La réconciliation ABAP du paiement a échoué.');
+  }
   const openInvoice = await pool.query(
     'SELECT rtrim(invoice_status) AS status FROM zgc_invoice WHERE rtrim(invoice_id) = $1',
     [invoiceId],
@@ -212,6 +251,27 @@ try {
   }
   if (await service.cancelInvoice(invoiceId) === 0) {
     throw new Error('Une facture payée ne doit pas pouvoir être annulée.');
+  }
+  const cancelledPayment = await service.cancelPayment(secondPaymentId);
+  const invoiceAfterPaymentCancel = await pool.query(
+    'SELECT rtrim(invoice_status) AS status FROM zgc_invoice WHERE rtrim(invoice_id) = $1',
+    [invoiceId],
+  );
+  if (cancelledPayment !== 0 || invoiceAfterPaymentCancel.rows[0]?.status !== 'OPEN') {
+    throw new Error('L’annulation du paiement doit rouvrir une facture insuffisamment réglée.');
+  }
+  const restoredPayment = await service.recordPayment({
+    payment_id: thirdPaymentId,
+    invoice_id: invoiceId,
+    payment_amount: expectedOrderTotal / 2,
+    payment_method: 'TRANSFER',
+  });
+  const invoiceAfterRestore = await pool.query(
+    'SELECT rtrim(invoice_status) AS status FROM zgc_invoice WHERE rtrim(invoice_id) = $1',
+    [invoiceId],
+  );
+  if (restoredPayment !== 0 || invoiceAfterRestore.rows[0]?.status !== 'PAID') {
+    throw new Error('Le nouveau règlement complet n’a pas refermé la facture.');
   }
 
   const cancelledOrderResult = await service.createOrder({
