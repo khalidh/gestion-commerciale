@@ -1,0 +1,44 @@
+managed implementation in class zbp_i_gccustomer unique;
+strict ( 2 );
+with draft;
+
+define behavior for ZI_GCCustomer alias Customer
+persistent table zgc_rap_cust
+draft table zgc_rap_cust_d
+lock master total etag LastChangedAt
+authorization master ( global )
+etag master LocalLastChangedAt
+{
+  create;
+  update;
+  delete;
+
+  field ( readonly, numbering : managed ) CustomerUUID;
+  field ( mandatory ) CustomerCode, CustomerName, CustomerType, Status;
+  field ( readonly ) CreatedBy, CreatedAt, LastChangedBy, LastChangedAt, LocalLastChangedAt;
+
+  determination setDefaults on modify { create; }
+  validation validateCustomer on save { create; update; }
+
+  draft action Edit;
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Resume;
+  draft determine action Prepare { validation validateCustomer; }
+
+  mapping for zgc_rap_cust
+  {
+    CustomerUUID = customer_uuid;
+    CustomerCode = customer_code;
+    CustomerName = customer_name;
+    CustomerType = customer_type;
+    CustomerEmail = customer_email;
+    Phone = phone;
+    Status = status;
+    CreatedBy = created_by;
+    CreatedAt = created_at;
+    LastChangedBy = last_changed_by;
+    LastChangedAt = last_changed_at;
+    LocalLastChangedAt = local_last_changed_at;
+  }
+}

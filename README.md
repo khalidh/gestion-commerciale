@@ -133,6 +133,12 @@ npm --prefix open-abap-postgres start
 
 L’application SAPUI5 est servie sur <http://127.0.0.1:3000/>. Le prototype utilise un sous-ensemble ABAP transpilé, ce n’est pas le runtime RAP SAP. Voir `open-abap-postgres/README.md`.
 
+## Sources SAP RAP Natives
+
+Le dossier [sap-rap/README.md](sap-rap/README.md) contient la premiere tranche Clients/Produits pour SAP BTP ABAP Environment : tables actives et draft, CDS, comportements managed, classes de validation, projections et annotations Fiori Elements, definition de service et guide de creation du binding OData V4 dans ADT.
+
+Ces sources sont distinctes du prototype local et ne sont pas encore compilees, activees ou deployees dans SAP. Les autorisations SAP, index uniques et tests runtime restent a configurer/verifier dans le tenant Trial. Les autres parcours commerciaux RAP et la migration de donnees restent a implementer.
+
 ## Authentification ORDS (production)
 
 1. Appliquer `sql/011_phase3_security_auth.sql` puis `sql/010_phase3_ords_rest.sql`.
