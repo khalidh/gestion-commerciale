@@ -24,6 +24,8 @@ export async function createCustomerService(database) {
       .then((contents) => new MemoryFile('zgc_invoice.tabl.xml', contents)),
     readFile(new URL('zgc_payment.tabl.xml', sourceDirectory), 'utf8')
       .then((contents) => new MemoryFile('zgc_payment.tabl.xml', contents)),
+    readFile(new URL('zgc_audit_log.tabl.xml', sourceDirectory), 'utf8')
+      .then((contents) => new MemoryFile('zgc_audit_log.tabl.xml', contents)),
     readFile(new URL('zcl_customer_service.clas.abap', sourceDirectory), 'utf8')
       .then((contents) => new MemoryFile('zcl_customer_service.clas.abap', contents)),
   ]);
@@ -86,13 +88,33 @@ export async function createCustomerService(database) {
       await database.commit();
       return result;
     },
+    async cancelOrder(orderId) {
+      const result = nativeValue(await service.cancel_order({ order_id: orderId }));
+      await database.commit();
+      return result;
+    },
+    async addOrderLine(line) {
+      const result = nativeValue(await service.add_order_line(line));
+      await database.commit();
+      return result;
+    },
     async generateInvoice(invoice) {
       const result = nativeValue(await service.generate_invoice(invoice));
       await database.commit();
       return result;
     },
+    async cancelInvoice(invoiceId) {
+      const result = nativeValue(await service.cancel_invoice({ invoice_id: invoiceId }));
+      await database.commit();
+      return result;
+    },
     async recordPayment(payment) {
       const result = nativeValue(await service.record_payment(payment));
+      await database.commit();
+      return result;
+    },
+    async writeAudit(entry) {
+      const result = nativeValue(await service.write_audit(entry));
       await database.commit();
       return result;
     },
@@ -113,5 +135,17 @@ export async function ensurePostgresSchema(pool, database, statements) {
     if (!result.rows[0].name) {
       await database.execute(statement);
     }
+  }
+
+  const customerTable = await pool.query("SELECT to_regclass('public.zgc_customer') AS name");
+  if (customerTable.rows[0].name) {
+    await pool.query("ALTER TABLE zgc_customer ADD COLUMN IF NOT EXISTS customer_code NCHAR(30) NOT NULL DEFAULT ''");
+    await pool.query("ALTER TABLE zgc_customer ADD COLUMN IF NOT EXISTS customer_type NCHAR(30) NOT NULL DEFAULT 'CUSTOMER'");
+    await pool.query('ALTER TABLE zgc_customer ADD COLUMN IF NOT EXISTS phone NCHAR(50)');
+    await pool.query(`UPDATE zgc_customer
+                         SET customer_code = 'CUST-' || left(replace(rtrim(customer_id), '-', ''), 12)
+                       WHERE btrim(customer_code) = ''`);
+    await pool.query('ALTER TABLE zgc_customer ALTER COLUMN customer_code DROP DEFAULT');
+    await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS zgc_customer_code_uq ON zgc_customer (customer_code)');
   }
 }

@@ -122,7 +122,7 @@ Ce bootstrap applique les scripts de securite et enregistre les endpoints REST P
 
 ## Prototype OpenABAP / PostgreSQL
 
-Une tranche séparée couvre les clients, produits, commandes, factures et paiements avec le transpileur ABAP OpenABAP, PostgreSQL et SAPUI5 desktop, sans modifier l’instance Oracle :
+Une tranche séparée couvre les clients complets, produits avec statut, commandes multi-lignes avec validation/annulation, factures, paiements, synthèse et audit avec le transpileur ABAP OpenABAP, PostgreSQL et SAPUI5 desktop, sans modifier l’instance Oracle :
 
 ```powershell
 npm --prefix open-abap-postgres install

@@ -60,11 +60,11 @@ END $$`);
 const count = await pool.query('SELECT COUNT(*)::int AS count FROM zgc_customer');
 if (count.rows[0].count === 0) {
   await pool.query(
-    `INSERT INTO zgc_customer (customer_id, customer_name, customer_email, status)
-     VALUES ($1, $2, $3, $4), ($5, $6, $7, $8)`,
+    `INSERT INTO zgc_customer (customer_id, customer_code, customer_name, customer_type, customer_email, phone, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7), ($8, $9, $10, $11, $12, $13, $14)`,
     [
-      randomUUID(), 'Acme SA', 'contact@acme.example', 'ACTIVE',
-      randomUUID(), 'Globex', 'sales@globex.example', 'ACTIVE',
+      randomUUID(), 'CUST-001', 'Acme SA', 'CUSTOMER', 'contact@acme.example', '+1 555 0101', 'ACTIVE',
+      randomUUID(), 'CUST-002', 'Globex', 'CUSTOMER', 'sales@globex.example', '+1 555 0102', 'ACTIVE',
     ],
   );
 }
@@ -91,7 +91,7 @@ async function listOrders(orderId) {
             rtrim(o.order_date) AS order_date,
             rtrim(o.order_status) AS order_status,
             o.total_amount,
-            string_agg(rtrim(p.product_name), ', ' ORDER BY rtrim(p.product_name)) AS products,
+            string_agg(rtrim(p.product_name) || ' x ' || l.quantity::text, ', ' ORDER BY rtrim(p.product_name)) AS products,
             rtrim(i.invoice_id) AS invoice_id,
             rtrim(i.invoice_number) AS invoice_number
        FROM zgc_sales_order o
@@ -147,8 +147,11 @@ app.use(express.static(fileURLToPath(new URL('./webapp/', import.meta.url))));
 async function findCustomer(customerId) {
   const result = await pool.query(
     `SELECT rtrim(customer_id) AS customer_id,
+            rtrim(customer_code) AS customer_code,
             rtrim(customer_name) AS customer_name,
+            rtrim(customer_type) AS customer_type,
             rtrim(customer_email) AS customer_email,
+            rtrim(phone) AS phone,
             rtrim(status) AS status
        FROM zgc_customer
       WHERE rtrim(customer_id) = $1`,
@@ -158,8 +161,18 @@ async function findCustomer(customerId) {
 }
 
 function customerInput(body) {
+  const customerCode = String(body?.customer_code ?? '').trim().toUpperCase()
+    || `CUST-${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
   const name = String(body?.customer_name ?? '');
+  const customerType = String(body?.customer_type ?? 'CUSTOMER').trim().toUpperCase();
   const email = String(body?.customer_email ?? '').trim();
+  const phone = String(body?.phone ?? '').trim();
+  const status = String(body?.status ?? 'ACTIVE').trim().toUpperCase();
+  if (!/^[A-Z0-9-]{1,30}$/.test(customerCode)) {
+    const error = new Error('Le code client doit contenir uniquement lettres, chiffres et tirets.');
+    error.status = 400;
+    throw error;
+  }
   if (!name.trim()) {
     const error = new Error('Le nom du client est obligatoire.');
     error.status = 400;
@@ -170,7 +183,20 @@ function customerInput(body) {
     error.status = 400;
     throw error;
   }
-  return { customer_name: name, customer_email: email };
+  if (!['CUSTOMER', 'PROSPECT', 'PARTNER', 'SUPPLIER'].includes(customerType)
+      || !['ACTIVE', 'INACTIVE'].includes(status)) {
+    const error = new Error('Le type ou le statut du client est invalide.');
+    error.status = 400;
+    throw error;
+  }
+  return {
+    customer_code: customerCode,
+    customer_name: name,
+    customer_type: customerType,
+    customer_email: email,
+    phone,
+    status,
+  };
 }
 
 function productInput(body) {
@@ -220,12 +246,28 @@ function amountInput(body) {
   return { amount, method };
 }
 
+async function writeAudit(moduleName, actionName, actionDetails) {
+  const result = await customerService.writeAudit({
+    audit_id: randomUUID(),
+    module_name: moduleName,
+    action_name: actionName,
+    actor_name: 'openabap_app',
+    action_details: actionDetails,
+  });
+  if (result !== 0) {
+    throw new Error(`Échec d’écriture du journal d’audit: ${moduleName}/${actionName}`);
+  }
+}
+
 app.get('/api/customers', async (_request, response, next) => {
   try {
     const result = await pool.query(
       `SELECT rtrim(customer_id) AS customer_id,
+              rtrim(customer_code) AS customer_code,
               rtrim(customer_name) AS customer_name,
+              rtrim(customer_type) AS customer_type,
               rtrim(customer_email) AS customer_email,
+              rtrim(phone) AS phone,
               rtrim(status) AS status
          FROM zgc_customer
         ORDER BY rtrim(customer_name)`,
@@ -265,6 +307,7 @@ app.post('/api/products', async (request, response, next) => {
     if (result !== 0) {
       return response.status(409).json({ error: 'product_not_created' });
     }
+    await writeAudit('PRODUCT', 'CREATE', `product_id=${product.product_id}; code=${product.product_code}`);
     const created = await pool.query(
       `SELECT rtrim(product_id) AS product_id, rtrim(product_code) AS product_code,
               rtrim(product_name) AS product_name, unit_price,
@@ -297,6 +340,7 @@ app.put('/api/products/:id', async (request, response, next) => {
     if (result !== 0) {
       return response.status(404).json({ error: 'product_not_found' });
     }
+    await writeAudit('PRODUCT', 'UPDATE', `product_id=${request.params.id}; status=${status}`);
     const updated = await pool.query(
       `SELECT rtrim(product_id) AS product_id, rtrim(product_code) AS product_code,
               rtrim(product_name) AS product_name, unit_price,
@@ -319,6 +363,7 @@ app.delete('/api/products/:id', async (request, response, next) => {
     if (result !== 0) {
       return response.status(409).json({ error: 'product_in_use_or_not_found' });
     }
+    await writeAudit('PRODUCT', 'DELETE', `product_id=${request.params.id}`);
     response.status(204).end();
   } catch (error) {
     next(error);
@@ -355,6 +400,42 @@ app.post('/api/orders', async (request, response, next) => {
     if (result !== 0) {
       return response.status(409).json({ error: 'order_not_created' });
     }
+    await writeAudit('ORDER', 'CREATE', `sales_order_id=${orderId}; customer_id=${input.customer_id}`);
+    response.status(201).json((await listOrders(orderId))[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/orders/:id/lines', async (request, response, next) => {
+  try {
+    const orderId = request.params.id;
+    const quantity = Number(request.body?.quantity);
+    const productId = String(request.body?.product_id ?? '').trim();
+    if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
+      return response.status(400).json({ error: 'product_and_positive_quantity_required' });
+    }
+    const order = await pool.query(
+      "SELECT 1 FROM zgc_sales_order WHERE rtrim(sales_order_id) = $1 AND rtrim(order_status) = 'DRAFT'",
+      [orderId],
+    );
+    const product = await pool.query(
+      "SELECT 1 FROM zgc_product WHERE rtrim(product_id) = $1 AND rtrim(status) = 'ACTIVE'",
+      [productId],
+    );
+    if (order.rowCount === 0 || product.rowCount === 0) {
+      return response.status(409).json({ error: 'draft_order_and_active_product_required' });
+    }
+    const result = await customerService.addOrderLine({
+      order_id: orderId,
+      line_id: randomUUID(),
+      product_id: productId,
+      quantity,
+    });
+    if (result !== 0) {
+      return response.status(409).json({ error: 'order_line_not_added' });
+    }
+    await writeAudit('ORDER', 'ADD_LINE', `sales_order_id=${orderId}; product_id=${productId}; quantity=${quantity}`);
     response.status(201).json((await listOrders(orderId))[0]);
   } catch (error) {
     next(error);
@@ -367,6 +448,20 @@ app.post('/api/orders/:id/validate', async (request, response, next) => {
     if (result !== 0) {
       return response.status(409).json({ error: 'order_not_draft_or_not_found' });
     }
+    await writeAudit('ORDER', 'VALIDATE', `sales_order_id=${request.params.id}`);
+    response.json((await listOrders(request.params.id))[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/orders/:id/cancel', async (request, response, next) => {
+  try {
+    const result = await customerService.cancelOrder(request.params.id);
+    if (result !== 0) {
+      return response.status(409).json({ error: 'only_uninvoiced_draft_orders_can_be_cancelled' });
+    }
+    await writeAudit('ORDER', 'CANCEL', `sales_order_id=${request.params.id}`);
     response.json((await listOrders(request.params.id))[0]);
   } catch (error) {
     next(error);
@@ -389,6 +484,7 @@ app.post('/api/orders/:id/invoice', async (request, response, next) => {
     if (result !== 0) {
       return response.status(409).json({ error: 'invoice_requires_validated_order_or_already_exists' });
     }
+    await writeAudit('INVOICE', 'GENERATE', `invoice_id=${invoiceId}; sales_order_id=${order.sales_order_id}`);
     response.status(201).json((await listInvoices(invoiceId))[0]);
   } catch (error) {
     next(error);
@@ -398,6 +494,26 @@ app.post('/api/orders/:id/invoice', async (request, response, next) => {
 app.get('/api/invoices', async (_request, response, next) => {
   try {
     response.json(await listInvoices());
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/invoices/:id/cancel', async (request, response, next) => {
+  try {
+    const invoice = (await listInvoices(request.params.id))[0];
+    if (!invoice) {
+      return response.status(404).json({ error: 'invoice_not_found' });
+    }
+    if (invoice.invoice_status !== 'OPEN' || invoice.paid_amount > 0) {
+      return response.status(409).json({ error: 'only_unpaid_open_invoices_can_be_cancelled' });
+    }
+    const result = await customerService.cancelInvoice(invoice.invoice_id);
+    if (result !== 0) {
+      return response.status(409).json({ error: 'invoice_not_cancellable' });
+    }
+    await writeAudit('INVOICE', 'CANCEL', `invoice_id=${invoice.invoice_id}`);
+    response.json((await listInvoices(invoice.invoice_id))[0]);
   } catch (error) {
     next(error);
   }
@@ -422,6 +538,7 @@ app.post('/api/invoices/:id/payments', async (request, response, next) => {
     if (result !== 0) {
       return response.status(409).json({ error: 'payment_not_recorded' });
     }
+    await writeAudit('PAYMENT', 'REGISTER', `invoice_id=${invoice.invoice_id}; amount=${paymentInput.amount}; method=${paymentInput.method}`);
     response.status(201).json((await listInvoices(invoice.invoice_id))[0]);
   } catch (error) {
     next(error);
@@ -445,6 +562,24 @@ app.get('/api/payments', async (_request, response, next) => {
         ORDER BY p.payment_date DESC, rtrim(p.payment_id) DESC`,
     );
     response.json(result.rows.map((payment) => ({ ...payment, payment_amount: Number(payment.payment_amount) })));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/audit', async (_request, response, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT rtrim(audit_id) AS audit_id,
+              rtrim(module_name) AS module_name,
+              rtrim(action_name) AS action_name,
+              rtrim(actor_name) AS actor_name,
+              rtrim(action_details) AS action_details,
+              rtrim(created_date) AS created_date
+         FROM zgc_audit_log
+        ORDER BY rtrim(created_date) DESC, rtrim(audit_id) DESC`,
+    );
+    response.json(result.rows);
   } catch (error) {
     next(error);
   }
@@ -481,6 +616,7 @@ app.post('/api/customers', async (request, response, next) => {
     if (result !== 0) {
       return response.status(409).json({ error: 'customer_not_created' });
     }
+    await writeAudit('CUSTOMER', 'CREATE', `customer_id=${customer.customer_id}; code=${customer.customer_code}`);
     response.status(201).json(await findCustomer(customer.customer_id));
   } catch (error) {
     next(error);
@@ -497,11 +633,16 @@ app.put('/api/customers/:id', async (request, response, next) => {
     input.customer_name = await customerService.normalizeName(input.customer_name);
     const result = await customerService.update({
       customer_id: request.params.id,
-      ...input,
+      customer_name: input.customer_name,
+      customer_type: input.customer_type,
+      customer_email: input.customer_email,
+      phone: input.phone,
+      status: input.status,
     });
     if (result !== 0) {
       return response.status(404).json({ error: 'customer_not_found' });
     }
+    await writeAudit('CUSTOMER', 'UPDATE', `customer_id=${request.params.id}; status=${input.status}`);
     response.json(await findCustomer(request.params.id));
   } catch (error) {
     next(error);
@@ -514,6 +655,7 @@ app.delete('/api/customers/:id', async (request, response, next) => {
     if (result !== 0) {
       return response.status(404).json({ error: 'customer_not_found' });
     }
+    await writeAudit('CUSTOMER', 'DELETE', `customer_id=${request.params.id}`);
     response.status(204).end();
   } catch (error) {
     next(error);

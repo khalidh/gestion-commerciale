@@ -5,10 +5,12 @@ CLASS zcl_customer_service DEFINITION PUBLIC FINAL CREATE PUBLIC.
       IMPORTING customer_name TYPE string
       RETURNING VALUE(normalized_name) TYPE string.
     CLASS-METHODS create_customer
-      IMPORTING customer_id TYPE string customer_name TYPE string customer_email TYPE string
+      IMPORTING customer_id TYPE string customer_code TYPE string customer_name TYPE string
+        customer_type TYPE string customer_email TYPE string phone TYPE string
       RETURNING VALUE(result) TYPE i.
     CLASS-METHODS update_customer
-      IMPORTING customer_id TYPE string customer_name TYPE string customer_email TYPE string
+      IMPORTING customer_id TYPE string customer_name TYPE string customer_type TYPE string
+        customer_email TYPE string phone TYPE string status TYPE string
       RETURNING VALUE(result) TYPE i.
     CLASS-METHODS delete_customer
       IMPORTING customer_id TYPE string
@@ -31,12 +33,25 @@ CLASS zcl_customer_service DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CLASS-METHODS validate_order
       IMPORTING order_id TYPE string
       RETURNING VALUE(result) TYPE i.
+    CLASS-METHODS cancel_order
+      IMPORTING order_id TYPE string
+      RETURNING VALUE(result) TYPE i.
+    CLASS-METHODS add_order_line
+      IMPORTING order_id TYPE string line_id TYPE string product_id TYPE string quantity TYPE price_type
+      RETURNING VALUE(result) TYPE i.
     CLASS-METHODS generate_invoice
       IMPORTING invoice_id TYPE string invoice_number TYPE string order_id TYPE string
+      RETURNING VALUE(result) TYPE i.
+    CLASS-METHODS cancel_invoice
+      IMPORTING invoice_id TYPE string
       RETURNING VALUE(result) TYPE i.
     CLASS-METHODS record_payment
       IMPORTING payment_id TYPE string invoice_id TYPE string
         payment_amount TYPE price_type payment_method TYPE string
+      RETURNING VALUE(result) TYPE i.
+    CLASS-METHODS write_audit
+      IMPORTING audit_id TYPE string module_name TYPE string action_name TYPE string
+        actor_name TYPE string action_details TYPE string
       RETURNING VALUE(result) TYPE i.
 ENDCLASS.
 
@@ -48,9 +63,12 @@ CLASS zcl_customer_service IMPLEMENTATION.
   METHOD create_customer.
     DATA customer TYPE zgc_customer.
     customer-customer_id = customer_id.
+    customer-customer_code = customer_code.
     customer-customer_name = customer_name.
     CONDENSE customer-customer_name.
+    customer-customer_type = customer_type.
     customer-customer_email = customer_email.
+    customer-phone = phone.
     customer-status = 'ACTIVE'.
     INSERT zgc_customer FROM customer.
     result = sy-subrc.
@@ -62,7 +80,10 @@ CLASS zcl_customer_service IMPLEMENTATION.
     CONDENSE normalized_name.
     UPDATE zgc_customer
       SET customer_name = @normalized_name,
-          customer_email = @customer_email
+          customer_type = @customer_type,
+          customer_email = @customer_email,
+          phone = @phone,
+          status = @status
       WHERE customer_id = @customer_id.
     result = sy-subrc.
   ENDMETHOD.
@@ -140,6 +161,55 @@ CLASS zcl_customer_service IMPLEMENTATION.
     result = sy-subrc.
   ENDMETHOD.
 
+  METHOD cancel_order.
+    DATA sales_order TYPE zgc_sales_order.
+    DATA invoice TYPE zgc_invoice.
+    SELECT SINGLE * FROM zgc_sales_order INTO @sales_order WHERE sales_order_id = @order_id.
+    IF sy-subrc <> 0 OR sales_order-order_status <> 'DRAFT'.
+      result = 4.
+      RETURN.
+    ENDIF.
+    SELECT SINGLE * FROM zgc_invoice INTO @invoice WHERE sales_order_id = @order_id.
+    IF sy-subrc = 0.
+      result = 4.
+      RETURN.
+    ENDIF.
+    UPDATE zgc_sales_order SET order_status = 'CANCELLED' WHERE sales_order_id = @order_id.
+    result = sy-subrc.
+  ENDMETHOD.
+
+  METHOD add_order_line.
+    DATA sales_order TYPE zgc_sales_order.
+    DATA product TYPE zgc_product.
+    DATA order_line TYPE zgc_sales_order_line.
+    DATA order_total TYPE price_type.
+    SELECT SINGLE * FROM zgc_sales_order INTO @sales_order WHERE sales_order_id = @order_id.
+    IF sy-subrc <> 0 OR sales_order-order_status <> 'DRAFT' OR quantity <= 0.
+      result = 4.
+      RETURN.
+    ENDIF.
+    SELECT SINGLE * FROM zgc_product INTO @product WHERE product_id = @product_id.
+    IF sy-subrc <> 0 OR product-status <> 'ACTIVE'.
+      result = 4.
+      RETURN.
+    ENDIF.
+    order_line-sales_order_line_id = line_id.
+    order_line-sales_order_id = order_id.
+    order_line-product_id = product_id.
+    order_line-quantity = quantity.
+    order_line-unit_price = product-unit_price.
+    order_line-line_amount = product-unit_price * quantity.
+    INSERT zgc_sales_order_line FROM order_line.
+    IF sy-subrc <> 0.
+      result = sy-subrc.
+      RETURN.
+    ENDIF.
+    SELECT SUM( line_amount ) FROM zgc_sales_order_line
+      INTO @order_total WHERE sales_order_id = @order_id.
+    UPDATE zgc_sales_order SET total_amount = @order_total WHERE sales_order_id = @order_id.
+    result = sy-subrc.
+  ENDMETHOD.
+
   METHOD generate_invoice.
     DATA sales_order TYPE zgc_sales_order.
     DATA existing_invoice TYPE zgc_invoice.
@@ -162,6 +232,23 @@ CLASS zcl_customer_service IMPLEMENTATION.
     invoice-invoice_status = 'OPEN'.
     invoice-total_amount = sales_order-total_amount.
     INSERT zgc_invoice FROM invoice.
+    result = sy-subrc.
+  ENDMETHOD.
+
+  METHOD cancel_invoice.
+    DATA invoice TYPE zgc_invoice.
+    DATA payment TYPE zgc_payment.
+    SELECT SINGLE * FROM zgc_invoice INTO @invoice WHERE invoice_id = @invoice_id.
+    IF sy-subrc <> 0 OR invoice-invoice_status <> 'OPEN'.
+      result = 4.
+      RETURN.
+    ENDIF.
+    SELECT SINGLE * FROM zgc_payment INTO @payment WHERE invoice_id = @invoice_id.
+    IF sy-subrc = 0.
+      result = 4.
+      RETURN.
+    ENDIF.
+    UPDATE zgc_invoice SET invoice_status = 'CANCELLED' WHERE invoice_id = @invoice_id.
     result = sy-subrc.
   ENDMETHOD.
 
@@ -191,5 +278,17 @@ CLASS zcl_customer_service IMPLEMENTATION.
       UPDATE zgc_invoice SET invoice_status = 'PAID' WHERE invoice_id = @invoice_id.
     ENDIF.
     result = 0.
+  ENDMETHOD.
+
+  METHOD write_audit.
+    DATA audit_entry TYPE zgc_audit_log.
+    audit_entry-audit_id = audit_id.
+    audit_entry-module_name = module_name.
+    audit_entry-action_name = action_name.
+    audit_entry-actor_name = actor_name.
+    audit_entry-action_details = action_details.
+    audit_entry-created_date = sy-datum.
+    INSERT zgc_audit_log FROM audit_entry.
+    result = sy-subrc.
   ENDMETHOD.
 ENDCLASS.

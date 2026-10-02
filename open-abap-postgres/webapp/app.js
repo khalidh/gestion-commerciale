@@ -64,7 +64,7 @@ sap.ui.define([
   'use strict';
 
   const apiUrl = '/api/customers';
-  const model = new JSONModel({ customers: [], products: [], orders: [], invoices: [], payments: [], openInvoices: [], summary: {} });
+  const model = new JSONModel({ customers: [], products: [], orders: [], invoices: [], payments: [], audit: [], openInvoices: [], summary: {} });
 
   function formatMoney(value, currency = 'EUR') {
     return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(Number(value || 0));
@@ -100,18 +100,20 @@ sap.ui.define([
   }
 
   async function refresh() {
-    const [customers, products, orders, invoices, payments] = await Promise.all([
+    const [customers, products, orders, invoices, payments, audit] = await Promise.all([
       request('/api/customers'),
       request('/api/products'),
       request('/api/orders'),
       request('/api/invoices'),
       request('/api/payments'),
+      request('/api/audit'),
     ]);
     model.setProperty('/customers', customers);
     model.setProperty('/products', products);
     model.setProperty('/orders', orders);
     model.setProperty('/invoices', invoices);
     model.setProperty('/payments', payments);
+    model.setProperty('/audit', audit);
     model.setProperty('/openInvoices', invoices.filter((invoice) => Number(invoice.remaining_amount) > 0));
     model.setProperty('/summary', {
       customers: customers.length,
@@ -138,16 +140,39 @@ sap.ui.define([
 
   function editorDialog(customer) {
     const isExisting = Boolean(customer?.customer_id);
+    const code = new Input({ value: customer?.customer_code || '', maxLength: 30, enabled: !isExisting });
     const name = new Input({ value: customer?.customer_name || '', maxLength: 80, required: true });
+    const type = new Select({
+      selectedKey: customer?.customer_type || 'CUSTOMER',
+      items: [
+        new Item({ key: 'CUSTOMER', text: 'Client' }),
+        new Item({ key: 'PROSPECT', text: 'Prospect' }),
+        new Item({ key: 'PARTNER', text: 'Partenaire' }),
+        new Item({ key: 'SUPPLIER', text: 'Fournisseur' }),
+      ],
+    });
     const email = new Input({ value: customer?.customer_email || '', maxLength: 100, type: 'Email' });
+    const phone = new Input({ value: customer?.phone || '', maxLength: 50, type: 'Tel' });
+    const status = new Select({
+      selectedKey: customer?.status || 'ACTIVE',
+      items: [new Item({ key: 'ACTIVE', text: 'Actif' }), new Item({ key: 'INACTIVE', text: 'Inactif' })],
+    });
     const dialog = new Dialog({
       title: isExisting ? 'Modifier le client' : 'Nouveau client',
       contentWidth: '30rem',
       content: [
+        new Label({ text: 'Code client', labelFor: code }),
+        code,
         new Label({ text: 'Nom', labelFor: name }),
         name,
+        new Label({ text: 'Type', labelFor: type }),
+        type,
         new Label({ text: 'E-mail', labelFor: email }),
         email,
+        new Label({ text: 'Téléphone', labelFor: phone }),
+        phone,
+        new Label({ text: 'Statut', labelFor: status }),
+        status,
       ],
       beginButton: new Button({
         text: 'Enregistrer',
@@ -160,8 +185,12 @@ sap.ui.define([
           }
           try {
             const body = JSON.stringify({
+              customer_code: code.getValue(),
               customer_name: name.getValue(),
+              customer_type: type.getSelectedKey(),
               customer_email: email.getValue(),
+              phone: phone.getValue(),
+              status: status.getSelectedKey(),
             });
             await request(isExisting ? `${apiUrl}/${encodeURIComponent(customer.customer_id)}` : apiUrl, {
               method: isExisting ? 'PUT' : 'POST',
@@ -191,6 +220,10 @@ sap.ui.define([
     const name = new Input({ value: product?.product_name || '', maxLength: 200, required: true });
     const price = new Input({ value: product ? String(product.unit_price) : '', type: 'Number', min: 0 });
     const currency = new Input({ value: product?.currency_code || 'EUR', maxLength: 3 });
+    const status = new Select({
+      selectedKey: product?.status || 'ACTIVE',
+      items: [new Item({ key: 'ACTIVE', text: 'Actif' }), new Item({ key: 'INACTIVE', text: 'Inactif' })],
+    });
     const dialog = new Dialog({
       title: isExisting ? 'Modifier le produit' : 'Nouveau produit',
       contentWidth: '32rem',
@@ -203,6 +236,8 @@ sap.ui.define([
         price,
         new Label({ text: 'Devise', labelFor: currency }),
         currency,
+        new Label({ text: 'Statut', labelFor: status }),
+        status,
       ],
       beginButton: new Button({
         text: 'Enregistrer',
@@ -219,7 +254,7 @@ sap.ui.define([
               product_name: name.getValue(),
               unit_price: unitPrice,
               currency_code: currency.getValue(),
-              status: product?.status || 'ACTIVE',
+              status: status.getSelectedKey(),
             });
             await request(isExisting ? `/api/products/${encodeURIComponent(product.product_id)}` : '/api/products', {
               method: isExisting ? 'PUT' : 'POST',
@@ -244,8 +279,11 @@ sap.ui.define([
     growingScrollToLoad: true,
     noDataText: 'Aucun client',
     columns: [
+      new Column({ width: '9rem', header: new Text({ text: 'Code' }) }),
       new Column({ width: '18rem', header: new Text({ text: 'Client' }) }),
+      new Column({ width: '9rem', minScreenWidth: 'tablet', demandPopin: true, header: new Text({ text: 'Type' }) }),
       new Column({ minScreenWidth: 'tablet', demandPopin: true, header: new Text({ text: 'E-mail' }) }),
+      new Column({ width: '10rem', minScreenWidth: 'tablet', demandPopin: true, header: new Text({ text: 'Téléphone' }) }),
       new Column({ width: '9rem', header: new Text({ text: 'Statut' }) }),
       new Column({ width: '7rem', hAlign: 'End', header: new Text({ text: 'Actions' }) }),
     ],
@@ -253,9 +291,12 @@ sap.ui.define([
       path: '/customers',
       template: new ColumnListItem({
         cells: [
+          new Text({ text: '{customer_code}' }),
           new Text({ text: '{customer_name}', wrapping: true }),
+          new Text({ text: { path: 'customer_type', formatter: (type) => ({ CUSTOMER: 'Client', PROSPECT: 'Prospect', PARTNER: 'Partenaire', SUPPLIER: 'Fournisseur' })[type] || type } }),
           new Text({ text: '{customer_email}', wrapping: true }),
-          new ObjectStatus({ text: '{status}', state: 'Success' }),
+          new Text({ text: '{phone}' }),
+          new ObjectStatus({ text: { path: 'status', formatter: statusText }, state: { path: 'status', formatter: statusState } }),
           new HBox({
             justifyContent: 'End',
             items: [
@@ -418,11 +459,73 @@ sap.ui.define([
     }
   }
 
+  async function cancelOrder(order) {
+    try {
+      await request(`/api/orders/${encodeURIComponent(order.sales_order_id)}/cancel`, { method: 'POST', body: '{}' });
+      await refresh();
+      MessageToast.show('Commande annulée');
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  function orderLineDialog(order) {
+    const product = new Select({
+      width: '20rem',
+      items: { path: '/products', template: new Item({ key: '{product_id}', text: '{product_name}' }) },
+    });
+    product.setModel(model);
+    const defaultProduct = model.getProperty('/products').find((item) => item.status === 'ACTIVE');
+    product.setSelectedKey(defaultProduct?.product_id || '');
+    const quantity = new Input({ type: 'Number', value: '1', min: 0.01, step: 0.01, width: '8rem' });
+    const dialog = new Dialog({
+      title: `Ajouter une ligne à ${order.order_number}`,
+      contentWidth: '30rem',
+      content: [new Label({ text: 'Produit', labelFor: product }), product, new Label({ text: 'Quantité', labelFor: quantity }), quantity],
+      beginButton: new Button({
+        text: 'Ajouter la ligne',
+        type: 'Emphasized',
+        press: async () => {
+          const productId = product.getSelectedKey();
+          const quantityValue = Number(quantity.getValue());
+          if (!productId || !Number.isFinite(quantityValue) || quantityValue <= 0) {
+            MessageBox.warning('Sélectionne un produit et une quantité positive.');
+            return;
+          }
+          try {
+            await request(`/api/orders/${encodeURIComponent(order.sales_order_id)}/lines`, {
+              method: 'POST',
+              body: JSON.stringify({ product_id: productId, quantity: quantityValue }),
+            });
+            await refresh();
+            dialog.close();
+            MessageToast.show('Ligne ajoutée');
+          } catch (error) {
+            showError(error);
+          }
+        },
+      }),
+      endButton: new Button({ text: 'Annuler', press: () => dialog.close() }),
+      afterClose: () => dialog.destroy(),
+    });
+    dialog.open();
+  }
+
   async function generateInvoice(order) {
     try {
       await request(`/api/orders/${encodeURIComponent(order.sales_order_id)}/invoice`, { method: 'POST', body: '{}' });
       await refresh();
       MessageToast.show('Facture générée');
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  async function cancelInvoice(invoice) {
+    try {
+      await request(`/api/invoices/${encodeURIComponent(invoice.invoice_id)}/cancel`, { method: 'POST', body: '{}' });
+      await refresh();
+      MessageToast.show('Facture annulée');
     } catch (error) {
       showError(error);
     }
@@ -471,7 +574,16 @@ sap.ui.define([
           new HBox({
             justifyContent: 'End',
             items: [
+              new Button({
+                text: 'Ajouter ligne',
+                visible: { path: 'order_status', formatter: (status) => status === 'DRAFT' },
+                press: (event) => orderLineDialog(event.getSource().getBindingContext().getObject()),
+              }),
               new Button({ text: 'Valider', enabled: { path: 'order_status', formatter: (status) => status === 'DRAFT' }, press: (event) => validateOrder(event.getSource().getBindingContext().getObject()) }),
+              new Button({ text: 'Annuler', type: 'Reject', visible: { path: 'order_status', formatter: (status) => status === 'DRAFT' }, press: (event) => {
+                const order = event.getSource().getBindingContext().getObject();
+                MessageBox.confirm(`Annuler ${order.order_number} ?`, { onClose: (action) => { if (action === MessageBox.Action.OK) cancelOrder(order); } });
+              } }),
               new Button({ text: 'Facturer', enabled: { parts: [{ path: 'order_status' }, { path: 'invoice_id' }], formatter: (status, invoiceId) => status === 'VALIDATED' && !invoiceId }, press: (event) => generateInvoice(event.getSource().getBindingContext().getObject()) }),
             ],
           }),
@@ -491,6 +603,7 @@ sap.ui.define([
       new Column({ width: '9rem', hAlign: 'End', header: new Text({ text: 'Encaissé' }) }),
       new Column({ width: '9rem', hAlign: 'End', header: new Text({ text: 'Solde' }) }),
       new Column({ width: '9rem', header: new Text({ text: 'Statut' }) }),
+      new Column({ width: '8rem', hAlign: 'End', header: new Text({ text: 'Actions' }) }),
     ],
     items: {
       path: '/invoices',
@@ -503,6 +616,15 @@ sap.ui.define([
           new Text({ text: { path: 'paid_amount', formatter: formatMoney } }),
           new Text({ text: { path: 'remaining_amount', formatter: formatMoney } }),
           new ObjectStatus({ text: { path: 'invoice_status', formatter: statusText }, state: { path: 'invoice_status', formatter: statusState } }),
+          new Button({
+            text: 'Annuler',
+            type: 'Reject',
+            visible: { parts: [{ path: 'invoice_status' }, { path: 'paid_amount' }], formatter: (status, paid) => status === 'OPEN' && Number(paid) === 0 },
+            press: (event) => {
+              const invoice = event.getSource().getBindingContext().getObject();
+              MessageBox.confirm(`Annuler la facture ${invoice.invoice_number} ?`, { onClose: (action) => { if (action === MessageBox.Action.OK) cancelInvoice(invoice); } });
+            },
+          }),
         ],
       }),
     },
@@ -527,6 +649,30 @@ sap.ui.define([
           new Text({ text: { path: 'payment_amount', formatter: formatMoney } }),
           new Text({ text: '{payment_method}' }),
           new ObjectStatus({ text: { path: 'payment_status', formatter: statusText }, state: { path: 'payment_status', formatter: statusState } }),
+        ],
+      }),
+    },
+  });
+
+  const auditTable = new Table({
+    growing: true,
+    noDataText: 'Aucun événement audité',
+    columns: [
+      new Column({ width: '8rem', header: new Text({ text: 'Date' }) }),
+      new Column({ width: '9rem', header: new Text({ text: 'Module' }) }),
+      new Column({ width: '10rem', header: new Text({ text: 'Action' }) }),
+      new Column({ width: '13rem', header: new Text({ text: 'Acteur' }) }),
+      new Column({ header: new Text({ text: 'Détails' }) }),
+    ],
+    items: {
+      path: '/audit',
+      template: new ColumnListItem({
+        cells: [
+          new Text({ text: { path: 'created_date', formatter: formatDate } }),
+          new Text({ text: '{module_name}' }),
+          new Text({ text: '{action_name}' }),
+          new Text({ text: '{actor_name}' }),
+          new Text({ text: '{action_details}', wrapping: true }),
         ],
       }),
     },
@@ -719,6 +865,15 @@ sap.ui.define([
             text: 'Synthèse',
             icon: 'sap-icon://business-objects-experience',
             content: [summaryPanel],
+          }),
+          new IconTabFilter({
+            key: 'audit',
+            text: 'Historique',
+            icon: 'sap-icon://history',
+            content: [
+              new Toolbar({ content: [new Title({ text: 'Journal d’audit', level: 'H2' }), new ToolbarSpacer(), new Button({ icon: 'sap-icon://refresh', type: 'Transparent', tooltip: 'Actualiser', press: () => refresh().catch(showError) })] }).addStyleClass('customerToolbar'),
+              auditTable.addStyleClass('customerTable'),
+            ],
           }),
         ],
       }),

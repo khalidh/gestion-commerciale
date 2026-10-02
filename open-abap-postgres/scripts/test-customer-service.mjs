@@ -5,10 +5,8 @@ import { PostgresDatabaseClient } from '@abaplint/database-pg';
 import { createCustomerService, ensurePostgresSchema } from '../src/customer-service.mjs';
 
 process.loadEnvFile(new URL('../.env', import.meta.url));
-
 const config = {
   user: process.env.PGUSER,
-  host: process.env.PGHOST,
   database: process.env.PGDATABASE,
   password: process.env.PGPASSWORD,
   port: Number(process.env.PGPORT),
@@ -22,6 +20,10 @@ const lineId = randomUUID();
 const invoiceId = randomUUID();
 const firstPaymentId = randomUUID();
 const secondPaymentId = randomUUID();
+const auditId = randomUUID();
+const cancelledOrderId = randomUUID();
+const cancelledInvoiceOrderId = randomUUID();
+const cancelledInvoiceId = randomUUID();
 
 try {
   await database.connect();
@@ -33,28 +35,43 @@ try {
   );
   const created = await service.create({
     customer_id: customerId,
+    customer_code: 'CUST-TEST-001',
     customer_name: '  Test   Client  ',
+    customer_type: 'CUSTOMER',
     customer_email: 'test@example.invalid',
+    phone: '+1 555 0100',
+    status: 'ACTIVE',
   });
   const afterCreate = await pool.query(
-    'SELECT customer_name FROM zgc_customer WHERE rtrim(customer_id) = $1',
+    'SELECT rtrim(customer_code) AS code, rtrim(customer_name) AS name, rtrim(customer_type) AS type, rtrim(phone) AS phone, rtrim(status) AS status FROM zgc_customer WHERE rtrim(customer_id) = $1',
     [customerId],
   );
-  if (created !== 0 || afterCreate.rows[0]?.customer_name.trimEnd() !== 'Test Client') {
+  if (created !== 0 || afterCreate.rows[0]?.code !== 'CUST-TEST-001'
+      || afterCreate.rows[0]?.name !== 'Test Client'
+      || afterCreate.rows[0]?.type !== 'CUSTOMER'
+      || afterCreate.rows[0]?.phone !== '+1 555 0100'
+      || afterCreate.rows[0]?.status !== 'ACTIVE') {
     throw new Error(`La création ABAP a échoué (sy-subrc=${created}, client=${JSON.stringify(afterCreate.rows[0])}).`);
   }
 
   const updated = await service.update({
     customer_id: customerId,
     customer_name: 'Client Modifie',
+    customer_type: 'PROSPECT',
     customer_email: 'updated@example.invalid',
+    phone: '+1 555 0101',
+    status: 'ACTIVE',
   });
   const afterUpdate = await pool.query(
-    'SELECT customer_name, customer_email FROM zgc_customer WHERE rtrim(customer_id) = $1',
+    'SELECT rtrim(customer_name) AS name, rtrim(customer_type) AS type, rtrim(phone) AS phone, rtrim(status) AS status, rtrim(customer_email) AS email FROM zgc_customer WHERE rtrim(customer_id) = $1',
     [customerId],
   );
-  if (updated !== 0 || afterUpdate.rows[0]?.customer_name.trimEnd() !== 'Client Modifie') {
-    throw new Error(`La modification ABAP du client a échoué (sy-subrc=${updated}, nom=${afterUpdate.rows[0]?.customer_name.trimEnd()}).`);
+  if (updated !== 0 || afterUpdate.rows[0]?.name !== 'Client Modifie'
+      || afterUpdate.rows[0]?.type !== 'PROSPECT'
+      || afterUpdate.rows[0]?.phone !== '+1 555 0101'
+      || afterUpdate.rows[0]?.status !== 'ACTIVE'
+      || afterUpdate.rows[0]?.email !== 'updated@example.invalid') {
+    throw new Error(`La modification ABAP du client a échoué (sy-subrc=${updated}, nom=${afterUpdate.rows[0]?.name}).`);
   }
 
   const deleted = await service.delete(customerId);
@@ -114,6 +131,13 @@ try {
   }
 
   const orderTotal = Number(product.rows[0].unit_price) * 2;
+  const extraProduct = await pool.query(
+    "SELECT rtrim(product_id) AS id, unit_price FROM zgc_product WHERE rtrim(status) = 'ACTIVE' AND rtrim(product_id) <> $1 LIMIT 1",
+    [product.rows[0].id],
+  );
+  if (!extraProduct.rows[0]) {
+    throw new Error('Le test multi-lignes exige deux produits actifs.');
+  }
   const orderCreated = await service.createOrder({
     order_id: orderId,
     order_number: `ORD-${orderId.slice(0, 8)}`,
@@ -122,13 +146,23 @@ try {
     line_id: lineId,
     quantity: 2,
   });
+  const extraLineCreated = await service.addOrderLine({
+    order_id: orderId,
+    line_id: randomUUID(),
+    product_id: extraProduct.rows[0].id,
+    quantity: 1,
+  });
+  const expectedOrderTotal = orderTotal + Number(extraProduct.rows[0].unit_price);
   const orderStatus = await pool.query(
-    'SELECT rtrim(order_status) AS status, total_amount FROM zgc_sales_order WHERE rtrim(sales_order_id) = $1',
+    `SELECT rtrim(order_status) AS status, total_amount,
+            (SELECT COUNT(*)::int FROM zgc_sales_order_line l WHERE rtrim(l.sales_order_id) = $1) AS line_count
+       FROM zgc_sales_order WHERE rtrim(sales_order_id) = $1`,
     [orderId],
   );
   if (orderCreated !== 0 || orderStatus.rows[0]?.status !== 'DRAFT'
-      || Number(orderStatus.rows[0]?.total_amount) !== orderTotal) {
-    throw new Error(`La création de commande ABAP a échoué (sy-subrc=${orderCreated}).`);
+      || extraLineCreated !== 0 || Number(orderStatus.rows[0]?.total_amount) !== expectedOrderTotal
+      || orderStatus.rows[0]?.line_count !== 2) {
+    throw new Error(`La commande ABAP multi-lignes a échoué (create=${orderCreated}, add=${extraLineCreated}).`);
   }
 
   const orderValidated = await service.validateOrder(orderId);
@@ -149,7 +183,7 @@ try {
   const firstPayment = await service.recordPayment({
     payment_id: firstPaymentId,
     invoice_id: invoiceId,
-    payment_amount: orderTotal / 2,
+    payment_amount: expectedOrderTotal / 2,
     payment_method: 'TRANSFER',
   });
   if (firstPayment !== 0) {
@@ -166,7 +200,7 @@ try {
   const finalPayment = await service.recordPayment({
     payment_id: secondPaymentId,
     invoice_id: invoiceId,
-    payment_amount: orderTotal / 2,
+    payment_amount: expectedOrderTotal / 2,
     payment_method: 'TRANSFER',
   });
   const paidInvoice = await pool.query(
@@ -176,13 +210,74 @@ try {
   if (finalPayment !== 0 || paidInvoice.rows[0]?.status !== 'PAID') {
     throw new Error('Le règlement complet n’a pas marqué la facture comme payée.');
   }
+  if (await service.cancelInvoice(invoiceId) === 0) {
+    throw new Error('Une facture payée ne doit pas pouvoir être annulée.');
+  }
 
-  console.log('OpenABAP/PostgreSQL tests passed: customers, products, order, invoice, payments.');
+  const cancelledOrderResult = await service.createOrder({
+    order_id: cancelledOrderId,
+    order_number: `ORD-CANCEL-${cancelledOrderId.slice(0, 8)}`,
+    customer_id: customer.rows[0].id,
+    product_id: product.rows[0].id,
+    line_id: randomUUID(),
+    quantity: 1,
+  });
+  const cancelledOrderStatus = await service.cancelOrder(cancelledOrderId);
+  const cancelledOrder = await pool.query(
+    'SELECT rtrim(order_status) AS status FROM zgc_sales_order WHERE rtrim(sales_order_id) = $1',
+    [cancelledOrderId],
+  );
+  if (cancelledOrderResult !== 0 || cancelledOrderStatus !== 0 || cancelledOrder.rows[0]?.status !== 'CANCELLED') {
+    throw new Error('L’annulation d’une commande brouillon a échoué.');
+  }
+
+  const cancellableOrderCreated = await service.createOrder({
+    order_id: cancelledInvoiceOrderId,
+    order_number: `ORD-VOID-${cancelledInvoiceOrderId.slice(0, 8)}`,
+    customer_id: customer.rows[0].id,
+    product_id: product.rows[0].id,
+    line_id: randomUUID(),
+    quantity: 1,
+  });
+  const cancellableOrderValidated = await service.validateOrder(cancelledInvoiceOrderId);
+  const cancellableInvoiceCreated = await service.generateInvoice({
+    invoice_id: cancelledInvoiceId,
+    invoice_number: `INV-VOID-${cancelledInvoiceId.slice(0, 8)}`,
+    order_id: cancelledInvoiceOrderId,
+  });
+  const cancellableInvoiceStatus = await service.cancelInvoice(cancelledInvoiceId);
+  const cancelledInvoice = await pool.query(
+    'SELECT rtrim(invoice_status) AS status FROM zgc_invoice WHERE rtrim(invoice_id) = $1',
+    [cancelledInvoiceId],
+  );
+  if (cancellableOrderCreated !== 0 || cancellableOrderValidated !== 0
+      || cancellableInvoiceCreated !== 0 || cancellableInvoiceStatus !== 0
+      || cancelledInvoice.rows[0]?.status !== 'CANCELLED') {
+    throw new Error('L’annulation d’une facture sans paiement a échoué.');
+  }
+
+  const auditResult = await service.writeAudit({
+    audit_id: auditId,
+    module_name: 'ORDER',
+    action_name: 'CREATE',
+    actor_name: 'openabap_app',
+    action_details: `order_id=${orderId}; lines=2; total=${expectedOrderTotal}`,
+  });
+  const auditRow = await pool.query(
+    'SELECT rtrim(module_name) AS module, rtrim(action_name) AS action FROM zgc_audit_log WHERE rtrim(audit_id) = $1',
+    [auditId],
+  );
+  if (auditResult !== 0 || auditRow.rows[0]?.module !== 'ORDER' || auditRow.rows[0]?.action !== 'CREATE') {
+    throw new Error('L’événement d’audit ABAP n’a pas été enregistré.');
+  }
+
+  console.log('OpenABAP/PostgreSQL tests passed: customers, products, order lines, cancellation, invoices, payments, audit.');
 } finally {
   await pool.query('DELETE FROM zgc_payment WHERE rtrim(invoice_id) = $1', [invoiceId]);
-  await pool.query('DELETE FROM zgc_invoice WHERE rtrim(invoice_id) = $1', [invoiceId]);
-  await pool.query('DELETE FROM zgc_sales_order_line WHERE rtrim(sales_order_id) = $1', [orderId]);
-  await pool.query('DELETE FROM zgc_sales_order WHERE rtrim(sales_order_id) = $1', [orderId]);
+  await pool.query('DELETE FROM zgc_invoice WHERE rtrim(invoice_id) IN ($1, $2)', [invoiceId, cancelledInvoiceId]);
+  await pool.query('DELETE FROM zgc_sales_order_line WHERE rtrim(sales_order_id) IN ($1, $2, $3)', [orderId, cancelledOrderId, cancelledInvoiceOrderId]);
+  await pool.query('DELETE FROM zgc_sales_order WHERE rtrim(sales_order_id) IN ($1, $2, $3)', [orderId, cancelledOrderId, cancelledInvoiceOrderId]);
+  await pool.query('DELETE FROM zgc_audit_log WHERE rtrim(audit_id) = $1', [auditId]);
   await database.disconnect();
   await pool.end();
 }
