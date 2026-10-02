@@ -120,6 +120,19 @@ Le backend Python peut alors accéder directement à Oracle. L'interface navigat
 
 Ce bootstrap applique les scripts de securite et enregistre les endpoints REST Phase 3 si ORDS est installé.
 
+## Prototype OpenABAP / PostgreSQL
+
+Une tranche séparée simule les opérations de gestion des clients avec le transpileur ABAP OpenABAP et PostgreSQL, sans modifier l’instance Oracle :
+
+```powershell
+npm --prefix open-abap-postgres install
+npm --prefix open-abap-postgres run setup
+npm --prefix open-abap-postgres run test:service
+npm --prefix open-abap-postgres start
+```
+
+L’application SAPUI5 est servie sur <http://127.0.0.1:3000/>. Le prototype utilise un sous-ensemble ABAP transpilé, ce n’est pas le runtime RAP SAP. Voir `open-abap-postgres/README.md`.
+
 ## Authentification ORDS (production)
 
 1. Appliquer `sql/011_phase3_security_auth.sql` puis `sql/010_phase3_ords_rest.sql`.

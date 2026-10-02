@@ -2,3 +2,5 @@
 __pycache__/
 *.pyc
 oracle/connection_config.env
+open-abap-postgres/.env
+open-abap-postgres/node_modules/

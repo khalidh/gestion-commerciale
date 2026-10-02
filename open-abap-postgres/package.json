@@ -1,0 +1,22 @@
+{
+  "name": "gestion-commerciale-open-abap-postgres",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "setup": "node scripts/setup-postgres.mjs",
+    "demo": "node src/run-demo.mjs",
+    "test:service": "node scripts/test-customer-service.mjs",
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@abaplint/core": "2.120.64",
+    "@abaplint/database-pg": "2.11.83",
+    "@abaplint/runtime": "2.13.96",
+    "@abaplint/transpiler": "2.13.96",
+    "express": "^5.2.1",
+    "pg": "^8.23.0"
+  }
+}
