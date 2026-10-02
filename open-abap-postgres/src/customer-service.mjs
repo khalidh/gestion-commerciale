@@ -88,6 +88,11 @@ export async function createCustomerService(database) {
       await database.commit();
       return result;
     },
+    async deliverOrder(orderId) {
+      const result = nativeValue(await service.deliver_order({ order_id: orderId }));
+      await database.commit();
+      return result;
+    },
     async cancelOrder(orderId) {
       const result = nativeValue(await service.cancel_order({ order_id: orderId }));
       await database.commit();

@@ -4,6 +4,7 @@ sap.ui.define([
   'sap/m/Button',
   'sap/m/Column',
   'sap/m/ColumnListItem',
+  'sap/m/DatePicker',
   'sap/m/Dialog',
   'sap/m/HBox',
   'sap/m/IconTabBar',
@@ -35,6 +36,7 @@ sap.ui.define([
   Button,
   Column,
   ColumnListItem,
+  DatePicker,
   Dialog,
   HBox,
   IconTabBar,
@@ -76,7 +78,7 @@ sap.ui.define([
   }
 
   function statusText(value) {
-    return ({ DRAFT: 'Brouillon', VALIDATED: 'Validée', OPEN: 'Ouverte', PAID: 'Payée', REGISTERED: 'Enregistré', RECONCILED: 'Rapproché', CANCELLED: 'Annulée' })[value] || value;
+    return ({ DRAFT: 'Brouillon', VALIDATED: 'Validée', DELIVERED: 'Livrée', OPEN: 'Ouverte', PAID: 'Payée', REGISTERED: 'Enregistré', RECONCILED: 'Rapproché', CANCELLED: 'Annulée' })[value] || value;
   }
 
   function statusState(value) {
@@ -100,6 +102,10 @@ sap.ui.define([
   }
 
   async function refresh() {
+    const reportParams = new URLSearchParams();
+    if (reportFromPicker?.getValue()) reportParams.set('from', reportFromPicker.getValue());
+    if (reportToPicker?.getValue()) reportParams.set('to', reportToPicker.getValue());
+    const reportPath = `/api/reports${reportParams.size ? `?${reportParams.toString()}` : ''}`;
     const [customers, products, orders, invoices, payments, audit, reports] = await Promise.all([
       request('/api/customers'),
       request('/api/products'),
@@ -107,7 +113,7 @@ sap.ui.define([
       request('/api/invoices'),
       request('/api/payments'),
       request('/api/audit'),
-      request('/api/reports'),
+      request(reportPath),
     ]);
     model.setProperty('/customers', customers);
     model.setProperty('/products', products);
@@ -433,6 +439,8 @@ sap.ui.define([
   let quantityInput;
   let paymentAmountInput;
   let paymentMethodSelect;
+  let reportFromPicker;
+  let reportToPicker;
 
   async function createOrder() {
     const customerId = orderCustomerSelect.getSelectedKey();
@@ -466,6 +474,16 @@ sap.ui.define([
       await request(`/api/orders/${encodeURIComponent(order.sales_order_id)}/cancel`, { method: 'POST', body: '{}' });
       await refresh();
       MessageToast.show('Commande annulée');
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  async function deliverOrder(order) {
+    try {
+      await request(`/api/orders/${encodeURIComponent(order.sales_order_id)}/deliver`, { method: 'POST', body: '{}' });
+      await refresh();
+      MessageToast.show('Commande livrée');
     } catch (error) {
       showError(error);
     }
@@ -719,6 +737,7 @@ sap.ui.define([
                 MessageBox.confirm(`Annuler ${order.order_number} ?`, { onClose: (action) => { if (action === MessageBox.Action.OK) cancelOrder(order); } });
               } }),
               new Button({ icon: 'sap-icon://sales-document', type: 'Transparent', tooltip: 'Générer une facture', enabled: { parts: [{ path: 'order_status' }, { path: 'invoice_id' }], formatter: (status, invoiceId) => status === 'VALIDATED' && !invoiceId }, press: (event) => generateInvoice(event.getSource().getBindingContext().getObject()) }),
+              new Button({ icon: 'sap-icon://shipping-status', type: 'Transparent', tooltip: 'Marquer livrée', visible: { path: 'order_status', formatter: (status) => status === 'VALIDATED' }, press: (event) => deliverOrder(event.getSource().getBindingContext().getObject()) }),
             ],
           }),
         ],
@@ -879,6 +898,43 @@ sap.ui.define([
     },
   });
 
+  const paymentReportTable = new Table({
+    growing: true,
+    noDataText: 'Aucun encaissement sur la période',
+    columns: [
+      new Column({ width: '12rem', header: new Text({ text: 'Date' }) }),
+      new Column({ width: '12rem', hAlign: 'End', header: new Text({ text: 'Paiements' }) }),
+      new Column({ width: '15rem', hAlign: 'End', header: new Text({ text: 'Montant encaissé' }) }),
+    ],
+    items: {
+      path: '/reports/payments_by_day',
+      template: new ColumnListItem({ cells: [
+        new Text({ text: { path: 'payment_date', formatter: formatDate } }),
+        new Text({ text: { path: 'payment_count', formatter: (value) => Number(value).toLocaleString('fr-FR') } }),
+        new Text({ text: { path: 'amount', formatter: formatMoney } }),
+      ] }),
+    },
+  });
+
+  reportFromPicker = new DatePicker({ width: '11rem', valueFormat: 'yyyy-MM-dd', displayFormat: 'dd/MM/yyyy', placeholder: 'Date début' });
+  reportToPicker = new DatePicker({ width: '11rem', valueFormat: 'yyyy-MM-dd', displayFormat: 'dd/MM/yyyy', placeholder: 'Date fin' });
+
+  function exportReports() {
+    const reports = model.getProperty('/reports');
+    const rows = [
+      ['Type', 'Code', 'Libellé', 'Quantité', 'Montant'],
+      ...reports.sales_by_product.map((row) => ['Vente', row.product_code, row.product_name, row.quantity_sold, row.revenue]),
+      ...reports.payments_by_day.map((row) => ['Encaissement', row.payment_date, 'Paiements journaliers', row.payment_count, row.amount]),
+      ...reports.open_invoice_balances.map((row) => ['Solde', row.invoice_number, row.customer_name, '', row.remaining_amount]),
+    ];
+    const csv = rows.map((row) => row.map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(';')).join('\r\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    link.download = 'gestion-commerciale-reporting.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
   orderCustomerSelect = new Select({
     width: '15rem',
     items: { path: '/customers', template: new Item({ key: '{customer_id}', text: '{customer_name}' }) },
@@ -989,6 +1045,7 @@ sap.ui.define([
                   });
                 },
               }),
+
             ],
           }),
         ],
@@ -1072,9 +1129,21 @@ sap.ui.define([
             text: 'Reporting',
             icon: 'sap-icon://business-objects-experience',
             content: [
-              new Toolbar({ content: [new Title({ text: 'Ventes par produit', level: 'H2' }), new ToolbarSpacer(), new Button({ icon: 'sap-icon://refresh', type: 'Transparent', tooltip: 'Actualiser', press: () => refresh().catch(showError) })] }).addStyleClass('customerToolbar'),
+              new Toolbar({
+                content: [
+                  new Title({ text: 'Période' }),
+                  reportFromPicker,
+                  reportToPicker,
+                  new Button({ text: 'Appliquer', icon: 'sap-icon://filter', press: () => refresh().catch(showError) }),
+                  new ToolbarSpacer(),
+                  new Button({ text: 'Exporter CSV', icon: 'sap-icon://download', press: exportReports }),
+                ],
+              }).addStyleClass('customerToolbar'),
+              new Toolbar({ content: [new Title({ text: 'Ventes par produit', level: 'H2' })] }).addStyleClass('customerToolbar'),
               salesReportTable.addStyleClass('customerTable'),
-              new Toolbar({ content: [new Title({ text: 'Factures ouvertes', level: 'H2' })] }).addStyleClass('customerToolbar'),
+              new Toolbar({ content: [new Title({ text: 'Encaissements par jour', level: 'H2' })] }).addStyleClass('customerToolbar'),
+              paymentReportTable.addStyleClass('customerTable'),
+              new Toolbar({ content: [new Title({ text: 'Factures ouvertes · Toutes périodes', level: 'H2' })] }).addStyleClass('customerToolbar'),
               balanceReportTable.addStyleClass('customerTable'),
             ],
           }),

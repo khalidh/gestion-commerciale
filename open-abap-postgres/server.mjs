@@ -102,7 +102,7 @@ async function listOrders(orderId) {
       WHERE ($1::text IS NULL OR rtrim(o.sales_order_id) = $1)
       GROUP BY o.sales_order_id, o.order_number, o.customer_id, c.customer_name,
                o.order_date, o.order_status, o.total_amount, i.invoice_id, i.invoice_number
-      ORDER BY o.order_date DESC, rtrim(o.order_number) DESC`,
+           ORDER BY o.order_date DESC, rtrim(o.order_number) DESC`,
     [orderId || null],
   );
   return result.rows.map((order) => ({ ...order, total_amount: Number(order.total_amount) }));
@@ -530,6 +530,19 @@ app.post('/api/orders/:id/validate', async (request, response, next) => {
   }
 });
 
+app.post('/api/orders/:id/deliver', async (request, response, next) => {
+  try {
+    const result = await customerService.deliverOrder(request.params.id);
+    if (result !== 0) {
+      return response.status(409).json({ error: 'only_validated_orders_can_be_delivered' });
+    }
+    await writeAudit('ORDER', 'DELIVER', `sales_order_id=${request.params.id}`);
+    response.json((await listOrders(request.params.id))[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post('/api/orders/:id/cancel', async (request, response, next) => {
   try {
     const result = await customerService.cancelOrder(request.params.id);
@@ -725,9 +738,31 @@ app.get('/api/dashboard', async (_request, response, next) => {
   }
 });
 
-app.get('/api/reports', async (_request, response, next) => {
+app.get('/api/reports', async (request, response, next) => {
   try {
-    const [sales, invoices] = await Promise.all([
+    function parseReportDate(value) {
+      if (!value) return '';
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const error = new Error('Les dates doivent être au format YYYY-MM-DD.');
+        error.status = 400;
+        throw error;
+      }
+      const parsed = new Date(`${value}T00:00:00Z`);
+      if (Number.isNaN(parsed.valueOf()) || parsed.toISOString().slice(0, 10) !== value) {
+        const error = new Error('La période contient une date invalide.');
+        error.status = 400;
+        throw error;
+      }
+      return value.replaceAll('-', '');
+    }
+
+    const from = parseReportDate(String(request.query.from ?? ''));
+    const to = parseReportDate(String(request.query.to ?? ''));
+    if (from && to && from > to) {
+      return response.status(400).json({ error: 'from_must_not_be_after_to' });
+    }
+
+    const [sales, payments, invoices] = await Promise.all([
       pool.query(
         `SELECT rtrim(p.product_id) AS product_id,
                 rtrim(p.product_code) AS product_code,
@@ -738,16 +773,37 @@ app.get('/api/reports', async (_request, response, next) => {
            JOIN zgc_sales_order o ON o.sales_order_id = l.sales_order_id
            JOIN zgc_product p ON p.product_id = l.product_id
           WHERE rtrim(o.order_status) IN ('VALIDATED', 'DELIVERED')
+            AND ($1 = '' OR rtrim(o.order_date) >= $1)
+            AND ($2 = '' OR rtrim(o.order_date) <= $2)
           GROUP BY p.product_id, p.product_code, p.product_name
           ORDER BY SUM(l.line_amount) DESC, rtrim(p.product_name)`,
+          [from, to],
+      ),
+      pool.query(
+        `SELECT rtrim(payment_date) AS payment_date,
+                SUM(payment_amount) AS amount,
+                COUNT(*)::int AS payment_count
+           FROM zgc_payment
+          WHERE rtrim(payment_status) <> 'CANCELLED'
+            AND ($1 = '' OR rtrim(payment_date) >= $1)
+            AND ($2 = '' OR rtrim(payment_date) <= $2)
+          GROUP BY rtrim(payment_date)
+          ORDER BY rtrim(payment_date)`,
+        [from, to],
       ),
       listInvoices(),
     ]);
     response.json({
+      from_date: from ? `${from.slice(0, 4)}-${from.slice(4, 6)}-${from.slice(6, 8)}` : null,
+      to_date: to ? `${to.slice(0, 4)}-${to.slice(4, 6)}-${to.slice(6, 8)}` : null,
       sales_by_product: sales.rows.map((row) => ({
         ...row,
         quantity_sold: Number(row.quantity_sold),
         revenue: Number(row.revenue),
+      })),
+      payments_by_day: payments.rows.map((row) => ({
+        ...row,
+        amount: Number(row.amount),
       })),
       open_invoice_balances: invoices.filter((invoice) => invoice.invoice_status === 'OPEN' && invoice.remaining_amount > 0),
     });

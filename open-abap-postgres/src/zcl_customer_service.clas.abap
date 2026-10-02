@@ -33,6 +33,9 @@ CLASS zcl_customer_service DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CLASS-METHODS validate_order
       IMPORTING order_id TYPE string
       RETURNING VALUE(result) TYPE i.
+    CLASS-METHODS deliver_order
+      IMPORTING order_id TYPE string
+      RETURNING VALUE(result) TYPE i.
     CLASS-METHODS cancel_order
       IMPORTING order_id TYPE string
       RETURNING VALUE(result) TYPE i.
@@ -170,6 +173,13 @@ CLASS zcl_customer_service IMPLEMENTATION.
     UPDATE zgc_sales_order
       SET order_status = 'VALIDATED'
       WHERE sales_order_id = @order_id AND order_status = 'DRAFT'.
+    result = sy-subrc.
+  ENDMETHOD.
+
+  METHOD deliver_order.
+    UPDATE zgc_sales_order
+      SET order_status = 'DELIVERED'
+      WHERE sales_order_id = @order_id AND order_status = 'VALIDATED'.
     result = sy-subrc.
   ENDMETHOD.
 

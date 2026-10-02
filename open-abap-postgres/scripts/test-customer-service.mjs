@@ -24,6 +24,7 @@ const secondPaymentId = randomUUID();
 const thirdPaymentId = randomUUID();
 const auditId = randomUUID();
 const cancelledOrderId = randomUUID();
+const deliveredOrderId = randomUUID();
 const cancelledInvoiceOrderId = randomUUID();
 const cancelledInvoiceId = randomUUID();
 
@@ -291,6 +292,25 @@ try {
     throw new Error('L’annulation d’une commande brouillon a échoué.');
   }
 
+  const deliveredOrderCreated = await service.createOrder({
+    order_id: deliveredOrderId,
+    order_number: `ORD-DELIVER-${deliveredOrderId.slice(0, 8)}`,
+    customer_id: customer.rows[0].id,
+    product_id: product.rows[0].id,
+    line_id: randomUUID(),
+    quantity: 1,
+  });
+  const deliveredOrderValidated = await service.validateOrder(deliveredOrderId);
+  const deliveredOrderResult = await service.deliverOrder(deliveredOrderId);
+  const deliveredOrder = await pool.query(
+    'SELECT rtrim(order_status) AS status FROM zgc_sales_order WHERE rtrim(sales_order_id) = $1',
+    [deliveredOrderId],
+  );
+  if (deliveredOrderCreated !== 0 || deliveredOrderValidated !== 0
+      || deliveredOrderResult !== 0 || deliveredOrder.rows[0]?.status !== 'DELIVERED') {
+    throw new Error('Le passage d’une commande validée au statut livré a échoué.');
+  }
+
   const cancellableOrderCreated = await service.createOrder({
     order_id: cancelledInvoiceOrderId,
     order_number: `ORD-VOID-${cancelledInvoiceOrderId.slice(0, 8)}`,
@@ -335,8 +355,8 @@ try {
 } finally {
   await pool.query('DELETE FROM zgc_payment WHERE rtrim(invoice_id) = $1', [invoiceId]);
   await pool.query('DELETE FROM zgc_invoice WHERE rtrim(invoice_id) IN ($1, $2)', [invoiceId, cancelledInvoiceId]);
-  await pool.query('DELETE FROM zgc_sales_order_line WHERE rtrim(sales_order_id) IN ($1, $2, $3)', [orderId, cancelledOrderId, cancelledInvoiceOrderId]);
-  await pool.query('DELETE FROM zgc_sales_order WHERE rtrim(sales_order_id) IN ($1, $2, $3)', [orderId, cancelledOrderId, cancelledInvoiceOrderId]);
+  await pool.query('DELETE FROM zgc_sales_order_line WHERE rtrim(sales_order_id) IN ($1, $2, $3, $4)', [orderId, cancelledOrderId, cancelledInvoiceOrderId, deliveredOrderId]);
+  await pool.query('DELETE FROM zgc_sales_order WHERE rtrim(sales_order_id) IN ($1, $2, $3, $4)', [orderId, cancelledOrderId, cancelledInvoiceOrderId, deliveredOrderId]);
   await pool.query('DELETE FROM zgc_audit_log WHERE rtrim(audit_id) = $1', [auditId]);
   await database.disconnect();
   await pool.end();
