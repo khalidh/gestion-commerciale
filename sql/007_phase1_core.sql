@@ -1,7 +1,7 @@
 -- Phase 1 - cœur fonctionnel de l'application de gestion commerciale
 -- Ce script complète le schéma métier avec contraintes, index et vues de base.
 
-ALTER SESSION SET CURRENT_SCHEMA = APP_USER;
+ALTER SESSION SET CURRENT_SCHEMA = CUSTOMER_APP;
 
 ALTER TABLE customers ADD CONSTRAINT chk_customer_status CHECK (status IN ('ACTIVE','INACTIVE'));
 ALTER TABLE products ADD CONSTRAINT chk_product_status CHECK (status IN ('ACTIVE','INACTIVE'));

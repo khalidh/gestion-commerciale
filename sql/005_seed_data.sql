@@ -1,7 +1,7 @@
 -- Données de départ pour l'application de gestion commerciale
 -- À exécuter après les scripts de schéma et de packages
 
-ALTER SESSION SET CURRENT_SCHEMA = APP_USER;
+ALTER SESSION SET CURRENT_SCHEMA = CUSTOMER_APP;
 
 SET DEFINE OFF;
 

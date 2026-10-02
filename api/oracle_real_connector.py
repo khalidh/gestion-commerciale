@@ -167,12 +167,25 @@ class OracleRealConnector:
 
     def health(self):
         config = self.load_config()
+        has_connection_config = all(config.get(key) for key in (
+            'ORACLE_USER',
+            'ORACLE_PASSWORD',
+            'ORACLE_DSN',
+        ))
+        if not self.driver_name():
+            status = 'missing-driver'
+        elif not has_connection_config:
+            status = 'missing-config'
+        else:
+            status = 'ready'
+
         return {
-            'status': 'ready' if self.driver_name() else 'missing-driver',
+            'status': status,
             'module': 'oracle-real-connector',
             'driver': self.driver_name(),
             'dsn_configured': bool(config.get('ORACLE_DSN')),
-            'user_configured': bool(config.get('ORACLE_USER'))
+            'user_configured': bool(config.get('ORACLE_USER')),
+            'password_configured': bool(config.get('ORACLE_PASSWORD'))
         }
 
 

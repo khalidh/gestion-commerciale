@@ -1,6 +1,6 @@
 -- Packages PL/SQL de base
 
-ALTER SESSION SET CURRENT_SCHEMA = APP_USER;
+ALTER SESSION SET CURRENT_SCHEMA = CUSTOMER_APP;
 
 CREATE OR REPLACE PACKAGE pkg_sales AS
     PROCEDURE create_order(p_customer_id NUMBER, p_order_number VARCHAR2, p_total_amount NUMBER);

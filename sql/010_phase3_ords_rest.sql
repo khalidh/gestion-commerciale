@@ -1,13 +1,13 @@
 -- Phase 3 - endpoints ORDS REST transactionnels
--- A executer avec APP_USER apres la Phase 2.
+-- A executer avec CUSTOMER_APP apres la Phase 2.
 -- Le script sql/011_phase3_security_auth.sql doit etre applique avant ce script.
 
-ALTER SESSION SET CURRENT_SCHEMA = APP_USER;
+ALTER SESSION SET CURRENT_SCHEMA = CUSTOMER_APP;
 
 BEGIN
     ORDS.ENABLE_SCHEMA(
         p_enabled => TRUE,
-        p_schema => 'APP_USER',
+        p_schema => 'CUSTOMER_APP',
         p_url_mapping_type => 'BASE_PATH',
         p_url_mapping_pattern => 'gestion-commerciale',
         p_auto_rest_auth => FALSE

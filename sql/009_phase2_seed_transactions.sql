@@ -1,7 +1,7 @@
 -- Phase 2 - donnees transactionnelles de demonstration
 -- A executer apres les packages PL/SQL et les objets Phase 2.
 
-ALTER SESSION SET CURRENT_SCHEMA = APP_USER;
+ALTER SESSION SET CURRENT_SCHEMA = CUSTOMER_APP;
 
 DECLARE
     l_customer_id customers.customer_id%TYPE;

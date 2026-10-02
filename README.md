@@ -57,6 +57,10 @@ python3 api/app.py
 ```bash
 python3 api/apex_backend_pro.py
 ```
+Sous Windows, après le bootstrap Oracle :
+```powershell
+.\.venv\Scripts\python.exe .\api\apex_backend_pro.py
+```
 Endpoints principaux :
 - `/apex/backend/pro/health`
 - `/apex/backend/pro/dashboard`
@@ -100,12 +104,26 @@ export ORACLE_ADMIN_DSN='//localhost:1521/FREEPDB1'
 ./oracle/bootstrap_app_schema.sh
 ```
 
-Ce bootstrap applique aussi les scripts de securite et ORDS Phase 3.
+Sous Windows avec Oracle Free, lancez le bootstrap PowerShell (DSN par défaut : `//localhost:1521/FREEPDB1`) :
+
+```powershell
+.\oracle\setup_windows.ps1
+```
+
+Il installe le driver dans `.venv`, crée le schéma `CUSTOMER_APP`, applique les scripts SQL et configure `oracle/connection_config.env` en local. Les mots de passe sont demandés dans le terminal. Vérifiez ensuite la connexion :
+
+```powershell
+.\.venv\Scripts\python.exe .\oracle\connect_oracle.py
+```
+
+Le backend Python peut alors accéder directement à Oracle. L'interface navigateur en mode Oracle requiert également qu'ORDS soit installé/configuré sur `FREEPDB1`, car ses routes de lecture et d'écriture utilisent ORDS.
+
+Ce bootstrap applique les scripts de securite et enregistre les endpoints REST Phase 3 si ORDS est installé.
 
 ## Authentification ORDS (production)
 
 1. Appliquer `sql/011_phase3_security_auth.sql` puis `sql/010_phase3_ords_rest.sql`.
-2. Changer immediatement les cles par defaut :
+2. Le bootstrap ne cree pas de cles API par defaut. Enregistrez vos propres cles fortes (seules leurs empreintes sont stockees) :
 ```sql
 BEGIN
 	pkg_security.upsert_api_client('GC_ADMIN', 'Admin', 'APP_ADMIN', 'VOTRE_CLE_ADMIN_FORTE');

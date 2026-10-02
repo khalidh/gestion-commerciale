@@ -1,7 +1,7 @@
 -- Phase 3 hardening - authentification API et autorisation par role
--- A executer avec APP_USER avant sql/010_phase3_ords_rest.sql
+-- A executer avec CUSTOMER_APP avant sql/010_phase3_ords_rest.sql
 
-ALTER SESSION SET CURRENT_SCHEMA = APP_USER;
+ALTER SESSION SET CURRENT_SCHEMA = CUSTOMER_APP;
 
 BEGIN
     EXECUTE IMMEDIATE q'[
@@ -170,12 +170,6 @@ SELECT client_id,
 /
 
 BEGIN
-    pkg_security.upsert_api_client('GC_ADMIN',   'Gestion Commerciale Admin',   'APP_ADMIN',   'GC_ADMIN_CHANGE_ME_2026!');
-    pkg_security.upsert_api_client('GC_SALES',   'Gestion Commerciale Sales',   'SALES_USER',  'GC_SALES_CHANGE_ME_2026!');
-    pkg_security.upsert_api_client('GC_FINANCE', 'Gestion Commerciale Finance', 'FINANCE_USER','GC_FINANCE_CHANGE_ME_2026!');
-    pkg_security.upsert_api_client('GC_REPORT',  'Gestion Commerciale Report',  'REPORT_USER', 'GC_REPORT_CHANGE_ME_2026!');
-    COMMIT;
-END;
-/
+-- API clients are provisioned by the local bootstrap or explicitly by an administrator.
 
 PROMPT Phase 3 security objects created. Change default API keys immediately with pkg_security.upsert_api_client.

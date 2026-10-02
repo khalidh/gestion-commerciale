@@ -1,7 +1,7 @@
 -- Phase 2 - reporting, soldes et audit applicatif
 -- A executer apres sql/007_phase1_core.sql.
 
-ALTER SESSION SET CURRENT_SCHEMA = APP_USER;
+ALTER SESSION SET CURRENT_SCHEMA = CUSTOMER_APP;
 
 CREATE OR REPLACE VIEW v_invoice_balances AS
 SELECT
