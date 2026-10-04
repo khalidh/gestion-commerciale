@@ -1,0 +1,5 @@
+@EndUserText.label: 'Gestion commerciale - Clients et produits'
+define service ZUI_GC_MASTER {
+  expose ZC_GCCustomer as Customers;
+  expose ZC_GCProduct as Products;
+}

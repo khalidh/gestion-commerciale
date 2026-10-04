@@ -15,7 +15,7 @@ Ne communiquez pas de mot de passe, de jeton ou de service key dans le chat ou d
 
 ## Sources Et Objets ADT
 
-Les extensions suivent les conventions de noms des sources ABAP, mais ce dossier **n'est pas un export abapGit complet**: les metadonnees de repository et de transport ne sont pas generees. Creer les objets correspondants dans ADT et utiliser leurs editeurs de source. Les namespaces et noms doivent etre libres dans le systeme cible; sur un tenant partage, coordonner un suffixe de groupe et adapter toutes les references si necessaire.
+Les extensions suivent les conventions de noms des sources ABAP. Un export abapGit local peut etre genere dans [abapgit-export](abapgit-export/README.md) avec `node sap-rap/build-abapgit-export.mjs`; les fichiers d'origine de `src` restent inchanges. L'export convertit les definitions de tables DDL vers le format XML DDIC d'abapGit. La connexion au depot depuis ADT, l'activation et les tests SAP restent a effectuer. Les namespaces et noms doivent etre libres dans le systeme cible; sur un tenant partage, coordonner un suffixe de groupe et adapter toutes les references si necessaire.
 
 | Type ADT | Nom | Source |
 | --- | --- | --- |

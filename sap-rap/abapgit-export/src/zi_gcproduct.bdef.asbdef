@@ -1,0 +1,43 @@
+managed implementation in class zbp_i_gcproduct unique;
+strict ( 2 );
+with draft;
+
+define behavior for ZI_GCProduct alias Product
+persistent table zgc_rap_prod
+draft table zgc_rap_prod_d
+lock master total etag LastChangedAt
+authorization master ( global )
+etag master LocalLastChangedAt
+{
+  create;
+  update;
+  delete;
+
+  field ( readonly, numbering : managed ) ProductUUID;
+  field ( mandatory ) ProductCode, ProductName, CurrencyCode, Status;
+  field ( readonly ) CreatedBy, CreatedAt, LastChangedBy, LastChangedAt, LocalLastChangedAt;
+
+  determination setDefaults on modify { create; }
+  validation validateProduct on save { create; update; }
+
+  draft action Edit;
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Resume;
+  draft determine action Prepare { validation validateProduct; }
+
+  mapping for zgc_rap_prod
+  {
+    ProductUUID = product_uuid;
+    ProductCode = product_code;
+    ProductName = product_name;
+    UnitPrice = unit_price;
+    CurrencyCode = currency_code;
+    Status = status;
+    CreatedBy = created_by;
+    CreatedAt = created_at;
+    LastChangedBy = last_changed_by;
+    LastChangedAt = last_changed_at;
+    LocalLastChangedAt = local_last_changed_at;
+  }
+}

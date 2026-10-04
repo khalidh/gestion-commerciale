@@ -1,0 +1,21 @@
+@EndUserText.label : 'Gestion commerciale - Customer drafts'
+@AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table zgc_rap_cust_d {
+  key client              : abap.clnt not null;
+  key customeruuid        : sysuuid_x16 not null;
+  customercode            : abap.char(30);
+  customername            : abap.char(200);
+  customertype            : abap.char(8);
+  customeremail           : abap.char(100);
+  phone                   : abap.char(50);
+  status                  : abap.char(8);
+  createdby               : abp_creation_user;
+  createdat               : abp_creation_tstmpl;
+  lastchangedby           : abp_locinst_lastchange_user;
+  lastchangedat           : abp_lastchange_tstmpl;
+  locallastchangedat       : abp_locinst_lastchange_tstmpl;
+  "%admin"                : include sych_bdl_draft_admin_inc;
+}
