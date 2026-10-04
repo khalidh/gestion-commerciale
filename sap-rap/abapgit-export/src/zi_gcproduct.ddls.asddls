@@ -8,7 +8,6 @@ define root view entity ZI_GCProduct
       product_name as ProductName,
       @Semantics.amount.currencyCode: 'CurrencyCode'
       unit_price as UnitPrice,
-      @Semantics.currencyCode: true
       currency_code as CurrencyCode,
       status as Status,
       @Semantics.user.createdBy: true
