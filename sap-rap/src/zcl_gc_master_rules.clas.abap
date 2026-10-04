@@ -30,7 +30,9 @@ CLASS zcl_gc_master_rules IMPLEMENTATION.
       APPEND VALUE #( field_name = 'CUSTOMERCODE'
         message = 'Customer code must contain 1 to 30 uppercase letters, digits or hyphens.' ) TO errors.
     ENDIF.
-    IF condense( customer_name ) IS INITIAL.
+    DATA(normalized_customer_name) = customer_name.
+    CONDENSE normalized_customer_name.
+    IF normalized_customer_name IS INITIAL.
       APPEND VALUE #( field_name = 'CUSTOMERNAME' message = 'Customer name is required.' ) TO errors.
     ENDIF.
     IF customer_type <> 'CUSTOMER' AND customer_type <> 'PROSPECT'
@@ -52,7 +54,9 @@ CLASS zcl_gc_master_rules IMPLEMENTATION.
       APPEND VALUE #( field_name = 'PRODUCTCODE'
         message = 'Product code must contain 1 to 30 uppercase letters, digits or hyphens.' ) TO errors.
     ENDIF.
-    IF condense( product_name ) IS INITIAL.
+    DATA(normalized_product_name) = product_name.
+    CONDENSE normalized_product_name.
+    IF normalized_product_name IS INITIAL.
       APPEND VALUE #( field_name = 'PRODUCTNAME' message = 'Product name is required.' ) TO errors.
     ENDIF.
     IF unit_price < 0.

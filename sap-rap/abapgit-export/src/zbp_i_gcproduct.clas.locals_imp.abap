@@ -43,7 +43,7 @@ CLASS lhc_product IMPLEMENTATION.
   METHOD validateProduct.
     READ ENTITIES OF ZI_GCProduct IN LOCAL MODE
       ENTITY Product ALL FIELDS WITH CORRESPONDING #( keys )
-      RESULT DATA(products) FAILED failed.
+      RESULT DATA(products).
     LOOP AT products INTO DATA(product).
       APPEND VALUE #( %tky = product-%tky %state_area = 'PRODUCT_CHECK' ) TO reported-product.
       DATA(errors) = zcl_gc_master_rules=>check_product(

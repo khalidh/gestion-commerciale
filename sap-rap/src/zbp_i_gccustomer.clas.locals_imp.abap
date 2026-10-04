@@ -43,7 +43,7 @@ CLASS lhc_customer IMPLEMENTATION.
   METHOD validateCustomer.
     READ ENTITIES OF ZI_GCCustomer IN LOCAL MODE
       ENTITY Customer ALL FIELDS WITH CORRESPONDING #( keys )
-      RESULT DATA(customers) FAILED failed.
+      RESULT DATA(customers).
     LOOP AT customers INTO DATA(customer).
       APPEND VALUE #( %tky = customer-%tky %state_area = 'CUSTOMER_CHECK' ) TO reported-customer.
       DATA(errors) = zcl_gc_master_rules=>check_customer(
