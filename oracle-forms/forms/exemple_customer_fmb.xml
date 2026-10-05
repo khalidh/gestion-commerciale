@@ -1,0 +1,50 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Module version="141020000" xmlns="http://xmlns.oracle.com/Forms">
+   <FormModule Name="CUSTOMER" DirtyInfo="true" Title="Customer Management" ConsoleWindow="CUSTOMER_WINDOW" MenuModule="DEFAULT&amp;SMARTBAR">
+      <Coordinate CharacterCellWidth="9" RealUnit="Point" DefaultFontScaling="true" CharacterCellHeight="16" CoordinateSystem="Real"/>
+      <Block Name="CUSTOMER" QueryDataSourceName="CUSTOMER" DirtyInfo="true" ScrollbarWidth="18" ScrollbarLength="158">
+         <Item Name="CUSTOMER_ID" Prompt="Customer Id" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="108" MaximumLength="11" ItemType="Text Item" DataType="Number" XPosition="76" Required="true" YPosition="33" DirtyInfo="true" CanvasName="CUSTOMER_CANVAS" ColumnName="CUSTOMER_ID" PromptDisplayStyle="All Records" ItemsDisplay="0" Height="16"/>
+         <Item Name="NAME" Prompt="Name" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="549" MaximumLength="100" ItemType="Text Item" XPosition="76" Required="true" YPosition="49" DirtyInfo="true" CanvasName="CUSTOMER_CANVAS" ColumnName="NAME" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16">
+            <Trigger Name="WHEN-VALIDATE-ITEM" DirtyInfo="true" TriggerText="IF :CUSTOMER.NAME IS NULL OR TRIM(:CUSTOMER.NAME) IS NULL THEN&amp;#10;  MESSAGE('Name is mandatory.');&amp;#10;  RAISE FORM_TRIGGER_FAILURE;&amp;#10;END IF;"/>
+         </Item>
+         <Item Name="EMAIL" Prompt="Email" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="549" MaximumLength="150" ItemType="Text Item" XPosition="76" Required="true" YPosition="65" DirtyInfo="true" CanvasName="CUSTOMER_CANVAS" ColumnName="EMAIL" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16">
+            <Trigger Name="WHEN-VALIDATE-ITEM" DirtyInfo="true" TriggerText="IF :CUSTOMER.EMAIL IS NULL OR TRIM(:CUSTOMER.EMAIL) IS NULL THEN&amp;#10;  MESSAGE('Email is mandatory.');&amp;#10;  RAISE FORM_TRIGGER_FAILURE;&amp;#10;END IF;&amp;#10;&amp;#10;IF NOT REGEXP_LIKE(:CUSTOMER.EMAIL, '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$') THEN&amp;#10;  MESSAGE('Email format is invalid.');&amp;#10;  RAISE FORM_TRIGGER_FAILURE;&amp;#10;END IF;"/>
+         </Item>
+         <Item Name="PHONE" Prompt="Phone" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="279" ItemType="Text Item" XPosition="76" YPosition="81" DirtyInfo="true" CanvasName="CUSTOMER_CANVAS" ColumnName="PHONE" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16"/>
+         <Item Name="CITY" Prompt="City" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="549" MaximumLength="80" ItemType="Text Item" XPosition="76" YPosition="97" DirtyInfo="true" CanvasName="CUSTOMER_CANVAS" ColumnName="CITY" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16"/>
+         <Item Name="COUNTRY" Prompt="Country" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="549" MaximumLength="80" ItemType="Text Item" XPosition="76" YPosition="113" DirtyInfo="true" CanvasName="CUSTOMER_CANVAS" ColumnName="COUNTRY" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16"/>
+         <Item Name="ACTIVE" Prompt="Active" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="38" MaximumLength="1" ItemType="Text Item" XPosition="77" Required="true" YPosition="130" DirtyInfo="true" CanvasName="CUSTOMER_CANVAS" ColumnName="ACTIVE" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16"/>
+         <Item Name="CREATE_CUSTOMER" Width="76" ItemType="Push Button" BackColor="white" XPosition="72" FontName="Segoe UI" YPosition="185" FontSize="900" FontStyle="Plain" DirtyInfo="true" FontWeight="Demilight" Label="Create" FontSpacing="Normal" ForegroundColor="black" CanvasName="CUSTOMER_CANVAS" Height="22">
+            <Trigger Name="WHEN-BUTTON-PRESSED" DirtyInfo="true" TriggerText="GO_BLOCK('CUSTOMER');&amp;#10;CREATE_RECORD;&amp;#10;:CUSTOMER.ACTIVE := 'Y';"/>
+         </Item>
+         <Item Name="READ_CUSTOMER" Width="76" ItemType="Push Button" BackColor="white" XPosition="156" FontName="Segoe UI" YPosition="186" FontSize="900" FontStyle="Plain" DirtyInfo="true" FontWeight="Demilight" Label="Read" FontSpacing="Normal" ForegroundColor="black" CanvasName="CUSTOMER_CANVAS" Height="22">
+            <Trigger Name="WHEN-BUTTON-PRESSED" DirtyInfo="true" TriggerText="GO_BLOCK('CUSTOMER');&amp;#10;EXECUTE_QUERY;"/>
+         </Item>
+         <Item Name="UPDATE_CUSTOMER" Width="76" ItemType="Push Button" BackColor="white" XPosition="243" FontName="Segoe UI" YPosition="187" FontSize="900" FontStyle="Plain" DirtyInfo="true" FontWeight="Demilight" Label="Update" FontSpacing="Normal" ForegroundColor="black" CanvasName="CUSTOMER_CANVAS" Height="22">
+            <Trigger Name="WHEN-BUTTON-PRESSED" DirtyInfo="true" TriggerText="GO_BLOCK('CUSTOMER');&amp;#10;COMMIT_FORM;"/>
+         </Item>
+         <Item Name="DELETE_CUSTOMER" Width="76" ItemType="Push Button" BackColor="white" XPosition="334" FontName="Segoe UI" YPosition="185" FontSize="900" FontStyle="Plain" DirtyInfo="true" FontWeight="Demilight" Label="Delete" FontSpacing="Normal" ForegroundColor="black" CanvasName="CUSTOMER_CANVAS" Height="22">
+            <Trigger Name="WHEN-BUTTON-PRESSED" DirtyInfo="true" TriggerText="GO_BLOCK('CUSTOMER');&amp;#10;IF :CUSTOMER.CUSTOMER_ID IS NULL THEN&amp;#10;  MESSAGE('Customer was not found.');&amp;#10;  RAISE FORM_TRIGGER_FAILURE;&amp;#10;END IF;&amp;#10;DELETE_RECORD;&amp;#10;COMMIT_FORM;"/>
+         </Item>
+         <Item Name="SEARCH_CUSTOMER" Width="76" ItemType="Push Button" BackColor="white" XPosition="430" FontName="Segoe UI" YPosition="186" FontSize="900" FontStyle="Plain" DirtyInfo="true" FontWeight="Demilight" Label="Search" FontSpacing="Normal" ForegroundColor="black" CanvasName="CUSTOMER_CANVAS" Height="22">
+            <Trigger Name="WHEN-BUTTON-PRESSED" DirtyInfo="true" TriggerText="GO_BLOCK('CUSTOMER');&amp;#10;ENTER_QUERY;"/>
+         </Item>
+         <Item Name="CLEAR_SEARCH" Width="76" ItemType="Push Button" BackColor="white" XPosition="524" FontName="Segoe UI" YPosition="187" FontSize="900" FontStyle="Plain" DirtyInfo="true" FontWeight="Demilight" Label="Clear Search" FontSpacing="Normal" ForegroundColor="black" CanvasName="CUSTOMER_CANVAS" Height="22">
+            <Trigger Name="WHEN-BUTTON-PRESSED" DirtyInfo="true" TriggerText="GO_BLOCK('CUSTOMER');&amp;#10;CLEAR_BLOCK;"/>
+         </Item>
+         <DataSourceColumn DSCLength="0" DSCMandatory="true" DSCPrecision="10" DSCName="CUSTOMER_ID" DSCScale="0" DSCType="NUMBER" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="100" DSCMandatory="true" DSCPrecision="0" DSCName="NAME" DSCScale="0" DSCType="VARCHAR2" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="150" DSCMandatory="true" DSCPrecision="0" DSCName="EMAIL" DSCScale="0" DSCType="VARCHAR2" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="30" DSCMandatory="false" DSCPrecision="0" DSCName="PHONE" DSCScale="0" DSCType="VARCHAR2" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="80" DSCMandatory="false" DSCPrecision="0" DSCName="CITY" DSCScale="0" DSCType="VARCHAR2" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="80" DSCMandatory="false" DSCPrecision="0" DSCName="COUNTRY" DSCScale="0" DSCType="VARCHAR2" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="1" DSCMandatory="true" DSCPrecision="0" DSCName="ACTIVE" DSCScale="0" DSCType="CHAR" DSCNochildren="false" Type="Query"/>
+         <Trigger Name="PRE-INSERT" DirtyInfo="true" TriggerText="DECLARE&amp;#10;  duplicate_count NUMBER;&amp;#10;BEGIN&amp;#10;  SELECT COUNT(*) INTO duplicate_count FROM CUSTOMER&amp;#10;   WHERE CUSTOMER_ID = :CUSTOMER.CUSTOMER_ID&amp;#10;      OR EMAIL = :CUSTOMER.EMAIL;&amp;#10;&amp;#10;  IF duplicate_count &gt; 0 THEN&amp;#10;    MESSAGE('Customer ID or email must be unique.');&amp;#10;    RAISE FORM_TRIGGER_FAILURE;&amp;#10;  END IF;&amp;#10;END;"/>
+         <Trigger Name="WHEN-NEW-RECORD-INSTANCE" DirtyInfo="true" TriggerText="IF :SYSTEM.RECORD_STATUS = 'NEW' THEN&amp;#10;  :CUSTOMER.ACTIVE := 'Y';&amp;#10;  SET_ITEM_PROPERTY('CUSTOMER.CUSTOMER_ID', UPDATE_ALLOWED, PROPERTY_TRUE);&amp;#10;ELSE&amp;#10;  SET_ITEM_PROPERTY('CUSTOMER.CUSTOMER_ID', UPDATE_ALLOWED, PROPERTY_FALSE);&amp;#10;END IF;"/>
+      </Block>
+      <Canvas Name="CUSTOMER_CANVAS" DirtyInfo="true" Width="720" WindowName="CUSTOMER_WINDOW" Height="378" ViewportHeight="378" ViewportWidth="720">
+         <Graphics Name="FRAME3" Width="625" EdgeBackColor="white" FillPattern="none" EdgePattern="solid" FrameTitleOffset="18" XPosition="9" YPosition="17" FrameTitleSpacing="9" FrameTitle="Customer Management" Bevel="Inset" DirtyInfo="true" LayoutDataBlockName="CUSTOMER" GraphicsType="Frame" HorizontalMargin="9" ScrollbarWidth="18" VerticalMargin="16" HorizontalObjectOffset="18" Height="144" StartPromptOffset="9"/>
+      </Canvas>
+      <Window Name="CUSTOMER_WINDOW" DirtyInfo="true" Title="Customer Management" Width="1000" Height="700"/>
+   </FormModule>
+</Module>

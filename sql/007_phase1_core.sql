@@ -19,7 +19,8 @@ SELECT
     (SELECT COUNT(*) FROM customers) AS customer_count,
     (SELECT COUNT(*) FROM products) AS product_count,
     (SELECT COUNT(*) FROM sales_orders) AS order_count,
-    (SELECT NVL(SUM(total_amount),0) FROM invoices WHERE invoice_status = 'PAID') AS paid_revenue;
+    (SELECT NVL(SUM(total_amount),0) FROM invoices WHERE invoice_status = 'PAID') AS paid_revenue
+FROM dual;
 
 CREATE OR REPLACE VIEW v_order_lines AS
 SELECT

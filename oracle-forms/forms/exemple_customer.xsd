@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="FormModule">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Description" type="xs:string" minOccurs="0" />
+        <xs:element name="Traceability" type="TraceabilityType" minOccurs="0" />
+        <xs:element name="Window" type="WindowType" />
+        <xs:element name="Canvas" type="CanvasType" />
+        <xs:element name="DataBlock" type="DataBlockType" />
+        <xs:element name="ControlBlock" type="ControlBlockType" minOccurs="0" />
+        <xs:element name="ProgramUnit" type="ProgramUnitType" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="name" type="xs:string" use="required" />
+      <xs:attribute name="title" type="xs:string" use="required" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="TraceabilityType">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="SourceModel" type="xs:string" />
+      <xs:element name="BusinessRule" type="TraceableTextType" />
+      <xs:element name="HappyPath" type="TraceableTextType" />
+      <xs:element name="EdgeCase" type="TraceableTextType" />
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:complexType name="TraceableTextType" mixed="true">
+    <xs:attribute name="id" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="WindowType">
+    <xs:attribute name="name" type="xs:string" use="required" />
+    <xs:attribute name="title" type="xs:string" use="required" />
+    <xs:attribute name="width" type="xs:positiveInteger" use="required" />
+    <xs:attribute name="height" type="xs:positiveInteger" use="required" />
+    <xs:attribute name="primaryCanvas" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="CanvasType">
+    <xs:attribute name="name" type="xs:string" use="required" />
+    <xs:attribute name="window" type="xs:string" use="required" />
+    <xs:attribute name="type" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="DataBlockType">
+    <xs:sequence>
+      <xs:element name="ListView" type="ListViewType" minOccurs="0" />
+      <xs:element name="SearchCapability" type="SearchCapabilityType" minOccurs="0" />
+      <xs:element name="Item" type="ItemType" minOccurs="1" maxOccurs="unbounded" />
+      <xs:element name="Trigger" type="TriggerType" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required" />
+    <xs:attribute name="dataSource" type="xs:string" use="required" />
+    <xs:attribute name="canvas" type="xs:string" use="required" />
+    <xs:attribute name="queryAllowed" type="xs:boolean" use="required" />
+    <xs:attribute name="insertAllowed" type="xs:boolean" use="required" />
+    <xs:attribute name="updateAllowed" type="xs:boolean" use="required" />
+    <xs:attribute name="deleteAllowed" type="xs:boolean" use="required" />
+    <xs:attribute name="defaultOrderBy" type="xs:string" use="optional" />
+  </xs:complexType>
+
+  <xs:complexType name="ListViewType">
+    <xs:sequence>
+      <xs:element name="Field" type="FieldType" minOccurs="1" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="defaultSortField" type="xs:string" use="required" />
+    <xs:attribute name="defaultSortDirection" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="SearchCapabilityType">
+    <xs:sequence>
+      <xs:element name="ExactFields" type="FieldGroupType" />
+      <xs:element name="PartialFields" type="FieldGroupType" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="FieldGroupType">
+    <xs:sequence>
+      <xs:element name="Field" type="FieldType" minOccurs="1" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="FieldType">
+    <xs:attribute name="name" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="ItemType">
+    <xs:attribute name="name" type="xs:string" use="required" />
+    <xs:attribute name="dataType" type="xs:string" use="required" />
+    <xs:attribute name="length" type="xs:positiveInteger" use="optional" />
+    <xs:attribute name="required" type="xs:boolean" use="required" />
+    <xs:attribute name="unique" type="xs:boolean" use="optional" />
+    <xs:attribute name="primaryKey" type="xs:boolean" use="optional" />
+    <xs:attribute name="defaultValue" type="xs:string" use="optional" />
+    <xs:attribute name="itemType" type="xs:string" use="optional" />
+    <xs:attribute name="x" type="xs:nonNegativeInteger" use="required" />
+    <xs:attribute name="y" type="xs:nonNegativeInteger" use="required" />
+    <xs:attribute name="width" type="xs:positiveInteger" use="required" />
+    <xs:attribute name="label" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="TriggerType">
+    <xs:sequence>
+      <xs:element name="Source" type="xs:string" />
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required" />
+    <xs:attribute name="item" type="xs:string" use="optional" />
+    <xs:attribute name="traceability" type="xs:string" use="optional" />
+  </xs:complexType>
+
+  <xs:complexType name="ControlBlockType">
+    <xs:sequence>
+      <xs:element name="Button" type="ButtonType" minOccurs="1" maxOccurs="unbounded" />
+      <xs:element name="Trigger" type="TriggerType" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required" />
+    <xs:attribute name="canvas" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="ButtonType">
+    <xs:attribute name="name" type="xs:string" use="required" />
+    <xs:attribute name="label" type="xs:string" use="required" />
+    <xs:attribute name="action" type="xs:string" use="required" />
+    <xs:attribute name="traceability" type="xs:string" use="optional" />
+  </xs:complexType>
+
+  <xs:complexType name="ProgramUnitType">
+    <xs:sequence>
+      <xs:element name="Description" type="xs:string" minOccurs="0" />
+      <xs:element name="Source" type="xs:string" />
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required" />
+    <xs:attribute name="traceability" type="xs:string" use="optional" />
+  </xs:complexType>
+</xs:schema>

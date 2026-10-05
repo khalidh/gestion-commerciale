@@ -1,0 +1,47 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Module version="141020000" xmlns="http://xmlns.oracle.com/Forms">
+   <FormModule Name="GC_CUSTOMERS" DirtyInfo="true" Title="Gestion des clients" ConsoleWindow="WIN_CUSTOMERS" MenuModule="DEFAULT&amp;SMARTBAR">
+      <Coordinate CharacterCellWidth="9" RealUnit="Point" DefaultFontScaling="true" CharacterCellHeight="16" CoordinateSystem="Real"/>
+      <Block Name="BLK_CUSTOMERS" QueryDataSourceName="CUSTOMERS" DirtyInfo="true" ScrollbarWidth="18" ScrollbarLength="158">
+         <Item Name="CUSTOMER_ID" Prompt="Identifiant" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="108" MaximumLength="38" ItemType="Text Item" DataType="Number" XPosition="42" Required="true" YPosition="33" DirtyInfo="true" CanvasName="CAN_CUSTOMERS" ColumnName="CUSTOMER_ID" PromptDisplayStyle="All Records" ItemsDisplay="0" Height="16" InsertAllowed="false" UpdateAllowed="false"/>
+         <Item Name="CUSTOMER_CODE" Prompt="Code client" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="279" MaximumLength="30" ItemType="Text Item" XPosition="42" YPosition="57" DirtyInfo="true" CanvasName="CAN_CUSTOMERS" ColumnName="CUSTOMER_CODE" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16">
+            <Trigger Name="WHEN-VALIDATE-ITEM" DirtyInfo="true" TriggerText="IF :BLK_CUSTOMERS.CUSTOMER_CODE IS NULL OR TRIM(:BLK_CUSTOMERS.CUSTOMER_CODE) IS NULL THEN&amp;#10;  MESSAGE('Le code client est obligatoire.');&amp;#10;  RAISE FORM_TRIGGER_FAILURE;&amp;#10;END IF;"/>
+         </Item>
+         <Item Name="CUSTOMER_NAME" Prompt="Nom du client" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="405" MaximumLength="200" ItemType="Text Item" XPosition="42" Required="true" YPosition="81" DirtyInfo="true" CanvasName="CAN_CUSTOMERS" ColumnName="CUSTOMER_NAME" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16">
+            <Trigger Name="WHEN-VALIDATE-ITEM" DirtyInfo="true" TriggerText="IF :BLK_CUSTOMERS.CUSTOMER_NAME IS NULL OR TRIM(:BLK_CUSTOMERS.CUSTOMER_NAME) IS NULL THEN&amp;#10;  MESSAGE('Le nom du client est obligatoire.');&amp;#10;  RAISE FORM_TRIGGER_FAILURE;&amp;#10;END IF;"/>
+         </Item>
+         <Item Name="CUSTOMER_TYPE" Prompt="Type de client" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="279" MaximumLength="30" ItemType="Text Item" XPosition="42" YPosition="105" DirtyInfo="true" CanvasName="CAN_CUSTOMERS" ColumnName="CUSTOMER_TYPE" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16"/>
+         <Item Name="STATUS" Prompt="Statut (ACTIVE/INACTIVE)" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="279" MaximumLength="20" ItemType="Text Item" XPosition="42" Required="true" YPosition="129" DirtyInfo="true" CanvasName="CAN_CUSTOMERS" ColumnName="STATUS" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16">
+            <Trigger Name="WHEN-VALIDATE-ITEM" DirtyInfo="true" TriggerText="IF :BLK_CUSTOMERS.STATUS IS NULL OR :BLK_CUSTOMERS.STATUS NOT IN ('ACTIVE', 'INACTIVE') THEN&amp;#10;  MESSAGE('Le statut doit etre ACTIVE ou INACTIVE.');&amp;#10;  RAISE FORM_TRIGGER_FAILURE;&amp;#10;END IF;"/>
+         </Item>
+         <Item Name="EMAIL" Prompt="Courriel" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="405" MaximumLength="200" ItemType="Text Item" XPosition="42" YPosition="153" DirtyInfo="true" CanvasName="CAN_CUSTOMERS" ColumnName="EMAIL" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16"/>
+         <Item Name="PHONE" Prompt="Telephone" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="279" MaximumLength="50" ItemType="Text Item" XPosition="42" YPosition="177" DirtyInfo="true" CanvasName="CAN_CUSTOMERS" ColumnName="PHONE" PromptDisplayStyle="All Records" DataLengthSemantics="BYTE" ItemsDisplay="0" Height="16"/>
+         <Item Name="CREATED_AT" Prompt="Cree le" TabPageName="" PromptAttachmentOffset="9" DistanceBetweenRecords="96" Width="180" ItemType="Text Item" DataType="Date" XPosition="42" YPosition="201" DirtyInfo="true" CanvasName="CAN_CUSTOMERS" ColumnName="CREATED_AT" PromptDisplayStyle="All Records" ItemsDisplay="0" Height="16" InsertAllowed="false" UpdateAllowed="false"/>
+         <Item Name="NEW_CUSTOMER" Width="90" ItemType="Push Button" BackColor="white" XPosition="42" FontName="Segoe UI" YPosition="245" FontSize="900" FontStyle="Plain" DirtyInfo="true" FontWeight="Demilight" Label="Nouveau" FontSpacing="Normal" ForegroundColor="black" CanvasName="CAN_CUSTOMERS" Height="22">
+            <Trigger Name="WHEN-BUTTON-PRESSED" DirtyInfo="true" TriggerText="GO_BLOCK('BLK_CUSTOMERS');&amp;#10;CREATE_RECORD;&amp;#10;:BLK_CUSTOMERS.CUSTOMER_TYPE := 'CUSTOMER';&amp;#10;:BLK_CUSTOMERS.STATUS := 'ACTIVE';"/>
+         </Item>
+         <Item Name="SAVE_CUSTOMER" Width="100" ItemType="Push Button" BackColor="white" XPosition="142" FontName="Segoe UI" YPosition="245" FontSize="900" FontStyle="Plain" DirtyInfo="true" FontWeight="Demilight" Label="Enregistrer" FontSpacing="Normal" ForegroundColor="black" CanvasName="CAN_CUSTOMERS" Height="22">
+            <Trigger Name="WHEN-BUTTON-PRESSED" DirtyInfo="true" TriggerText="GO_BLOCK('BLK_CUSTOMERS');&amp;#10;COMMIT_FORM;"/>
+         </Item>
+         <Item Name="ENTER_QUERY" Width="110" ItemType="Push Button" BackColor="white" XPosition="252" FontName="Segoe UI" YPosition="245" FontSize="900" FontStyle="Plain" DirtyInfo="true" FontWeight="Demilight" Label="Saisir recherche" FontSpacing="Normal" ForegroundColor="black" CanvasName="CAN_CUSTOMERS" Height="22">
+            <Trigger Name="WHEN-BUTTON-PRESSED" DirtyInfo="true" TriggerText="GO_BLOCK('BLK_CUSTOMERS');&amp;#10;ENTER_QUERY;"/>
+         </Item>
+         <Item Name="EXECUTE_QUERY" Width="110" ItemType="Push Button" BackColor="white" XPosition="372" FontName="Segoe UI" YPosition="245" FontSize="900" FontStyle="Plain" DirtyInfo="true" FontWeight="Demilight" Label="Rechercher" FontSpacing="Normal" ForegroundColor="black" CanvasName="CAN_CUSTOMERS" Height="22">
+            <Trigger Name="WHEN-BUTTON-PRESSED" DirtyInfo="true" TriggerText="GO_BLOCK('BLK_CUSTOMERS');&amp;#10;EXECUTE_QUERY;"/>
+         </Item>
+         <DataSourceColumn DSCLength="0" DSCMandatory="true" DSCPrecision="38" DSCName="CUSTOMER_ID" DSCScale="0" DSCType="NUMBER" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="30" DSCMandatory="true" DSCPrecision="0" DSCName="CUSTOMER_CODE" DSCScale="0" DSCType="VARCHAR2" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="200" DSCMandatory="true" DSCPrecision="0" DSCName="CUSTOMER_NAME" DSCScale="0" DSCType="VARCHAR2" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="30" DSCMandatory="false" DSCPrecision="0" DSCName="CUSTOMER_TYPE" DSCScale="0" DSCType="VARCHAR2" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="200" DSCMandatory="false" DSCPrecision="0" DSCName="EMAIL" DSCScale="0" DSCType="VARCHAR2" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="50" DSCMandatory="false" DSCPrecision="0" DSCName="PHONE" DSCScale="0" DSCType="VARCHAR2" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="20" DSCMandatory="false" DSCPrecision="0" DSCName="STATUS" DSCScale="0" DSCType="VARCHAR2" DSCNochildren="false" Type="Query"/>
+         <DataSourceColumn DSCLength="7" DSCMandatory="false" DSCPrecision="0" DSCName="CREATED_AT" DSCScale="0" DSCType="DATE" DSCNochildren="false" Type="Query"/>
+         <Trigger Name="WHEN-NEW-RECORD-INSTANCE" DirtyInfo="true" TriggerText="IF :SYSTEM.RECORD_STATUS = 'NEW' THEN&amp;#10;  IF :BLK_CUSTOMERS.CUSTOMER_TYPE IS NULL THEN&amp;#10;    :BLK_CUSTOMERS.CUSTOMER_TYPE := 'CUSTOMER';&amp;#10;  END IF;&amp;#10;  IF :BLK_CUSTOMERS.STATUS IS NULL THEN&amp;#10;    :BLK_CUSTOMERS.STATUS := 'ACTIVE';&amp;#10;  END IF;&amp;#10;  SET_ITEM_PROPERTY('BLK_CUSTOMERS.CUSTOMER_CODE', UPDATE_ALLOWED, PROPERTY_TRUE);&amp;#10;ELSE&amp;#10;  SET_ITEM_PROPERTY('BLK_CUSTOMERS.CUSTOMER_CODE', UPDATE_ALLOWED, PROPERTY_FALSE);&amp;#10;END IF;"/>
+      </Block>
+      <Canvas Name="CAN_CUSTOMERS" DirtyInfo="true" Width="900" WindowName="WIN_CUSTOMERS" Height="340" ViewportHeight="340" ViewportWidth="900">
+         <Graphics Name="FRAME_CUSTOMERS" Width="720" EdgeBackColor="white" FillPattern="none" EdgePattern="solid" FrameTitleOffset="18" XPosition="24" YPosition="18" FrameTitleSpacing="9" FrameTitle="Gestion des clients" Bevel="Inset" DirtyInfo="true" LayoutDataBlockName="BLK_CUSTOMERS" GraphicsType="Frame" HorizontalMargin="9" ScrollbarWidth="18" VerticalMargin="16" HorizontalObjectOffset="18" Height="250" StartPromptOffset="9"/>
+      </Canvas>
+      <Window Name="WIN_CUSTOMERS" DirtyInfo="true" Title="Gestion des clients" Width="1000" Height="700"/>
+   </FormModule>
+</Module>

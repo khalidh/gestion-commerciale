@@ -169,7 +169,4 @@ SELECT client_id,
   FROM app_api_clients;
 /
 
-BEGIN
--- API clients are provisioned by the local bootstrap or explicitly by an administrator.
-
 PROMPT Phase 3 security objects created. Change default API keys immediately with pkg_security.upsert_api_client.

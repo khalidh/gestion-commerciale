@@ -216,4 +216,14 @@ Le projet doit livrer :
 - les packages PL/SQL de base,
 - les pages APEX de gestion métier,
 - un plan de sécurité et de gouvernance,
-- une documentation de déploiement et de maintenance.
+- une documentation de déploiement et de maintenance,
+- un plan de portage vers SAP RAP et Oracle Forms.
+
+## 13. Portabilité vers d'autres environnements
+
+L'application devra pouvoir être portée, par étapes, vers les environnements suivants, en complément de son implémentation Oracle APEX :
+
+- **SAP RAP (ABAP RESTful Application Programming Model)** : réimplémentation des objets métier, règles de validation et autorisations avec les technologies SAP (ABAP, CDS, comportements RAP et services OData/Fiori Elements).
+- **Oracle Forms** : adaptation des écrans et parcours métier à Oracle Forms, avec réutilisation possible du schéma Oracle et des traitements PL/SQL compatibles.
+
+Le portage ne signifie pas une conversion automatique du code ni une interface identique. Chaque cible nécessitera une analyse des écarts, l'adaptation de l'interface, de la logique métier, de la sécurité et des intégrations, ainsi que des tests fonctionnels. Le modèle métier et les règles de gestion devront rester cohérents entre les implémentations.

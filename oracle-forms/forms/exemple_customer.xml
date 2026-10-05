@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FormModule name="CUSTOMER_MANAGEMENT" title="Customer Management">
+  <Description>Provide an application for managing customers.</Description>
+  <Traceability>
+    <SourceModel>model/customer.yaml</SourceModel>
+    <BusinessRule id="BR-001">customer_id must be unique.</BusinessRule>
+    <BusinessRule id="BR-002">name is mandatory.</BusinessRule>
+    <BusinessRule id="BR-003">email is mandatory.</BusinessRule>
+    <BusinessRule id="BR-004">email must be unique.</BusinessRule>
+    <BusinessRule id="BR-005">active defaults to true.</BusinessRule>
+    <BusinessRule id="BR-006">customer_id cannot be modified after creation.</BusinessRule>
+    <HappyPath id="HP-001">Create customer</HappyPath>
+    <HappyPath id="HP-002">Update customer</HappyPath>
+    <HappyPath id="HP-003">Search customer</HappyPath>
+    <EdgeCase id="EC-001">Missing name</EdgeCase>
+    <EdgeCase id="EC-002">Missing email</EdgeCase>
+    <EdgeCase id="EC-003">Duplicate email</EdgeCase>
+    <EdgeCase id="EC-004">Invalid email</EdgeCase>
+    <EdgeCase id="EC-005">Unknown customer</EdgeCase>
+  </Traceability>
+
+  <Window name="CUSTOMER_WINDOW" title="Customer Management" width="1000" height="700" primaryCanvas="CUSTOMER_CANVAS" />
+  <Canvas name="CUSTOMER_CANVAS" window="CUSTOMER_WINDOW" type="content" />
+
+  <DataBlock name="CUSTOMER" dataSource="CUSTOMER" canvas="CUSTOMER_CANVAS" queryAllowed="true" insertAllowed="true" updateAllowed="true" deleteAllowed="true" defaultOrderBy="NAME ASC">
+    <ListView defaultSortField="NAME" defaultSortDirection="ASC">
+      <Field name="CUSTOMER_ID" />
+      <Field name="NAME" />
+      <Field name="EMAIL" />
+      <Field name="CITY" />
+      <Field name="COUNTRY" />
+      <Field name="ACTIVE" />
+    </ListView>
+    <SearchCapability>
+      <ExactFields>
+        <Field name="CUSTOMER_ID" />
+        <Field name="NAME" />
+        <Field name="EMAIL" />
+        <Field name="CITY" />
+        <Field name="COUNTRY" />
+      </ExactFields>
+      <PartialFields>
+        <Field name="NAME" />
+        <Field name="EMAIL" />
+        <Field name="CITY" />
+      </PartialFields>
+    </SearchCapability>
+    <Item name="CUSTOMER_ID" dataType="INTEGER" required="true" unique="true" primaryKey="true" x="30" y="40" width="120" label="Customer ID" />
+    <Item name="NAME" dataType="VARCHAR2" length="100" required="true" x="200" y="40" width="250" label="Name" />
+    <Item name="EMAIL" dataType="VARCHAR2" length="150" required="true" unique="true" x="30" y="100" width="300" label="Email" />
+    <Item name="PHONE" dataType="VARCHAR2" length="30" required="false" x="380" y="100" width="200" label="Phone" />
+    <Item name="CITY" dataType="VARCHAR2" length="80" required="false" x="30" y="160" width="220" label="City" />
+    <Item name="COUNTRY" dataType="VARCHAR2" length="80" required="false" x="300" y="160" width="220" label="Country" />
+    <Item name="ACTIVE" dataType="BOOLEAN" required="true" defaultValue="true" itemType="CHECK_BOX" x="30" y="220" width="120" label="Active" />
+
+    <Trigger name="WHEN-VALIDATE-ITEM" item="NAME" traceability="BR-002 EC-001">
+      <Source><![CDATA[
+IF :CUSTOMER.NAME IS NULL OR TRIM(:CUSTOMER.NAME) IS NULL THEN
+  MESSAGE('Name is mandatory. [BR-002]');
+  RAISE FORM_TRIGGER_FAILURE;
+END IF;
+      ]]></Source>
+    </Trigger>
+    <Trigger name="WHEN-VALIDATE-ITEM" item="EMAIL" traceability="BR-003 BR-004 EC-002 EC-003 EC-004">
+      <Source><![CDATA[
+IF :CUSTOMER.EMAIL IS NULL OR TRIM(:CUSTOMER.EMAIL) IS NULL THEN
+  MESSAGE('Email is mandatory. [BR-003]');
+  RAISE FORM_TRIGGER_FAILURE;
+END IF;
+IF NOT REGEXP_LIKE(:CUSTOMER.EMAIL, '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$') THEN
+  MESSAGE('Email format is invalid. [EC-004]');
+  RAISE FORM_TRIGGER_FAILURE;
+END IF;
+      ]]></Source>
+    </Trigger>
+    <Trigger name="WHEN-VALIDATE-ITEM" item="CUSTOMER_ID" traceability="BR-001 BR-006">
+      <Source><![CDATA[
+IF :SYSTEM.RECORD_STATUS &lt;&gt; 'NEW' AND :CUSTOMER.CUSTOMER_ID IS NULL THEN
+  MESSAGE('Customer was not found. [EC-005]');
+  RAISE FORM_TRIGGER_FAILURE;
+END IF;
+      ]]></Source>
+    </Trigger>
+    <Trigger name="PRE-INSERT" traceability="BR-001 BR-004">
+      <Source><![CDATA[
+DECLARE
+  duplicate_count NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO duplicate_count FROM CUSTOMER
+   WHERE CUSTOMER_ID = :CUSTOMER.CUSTOMER_ID
+      OR EMAIL = :CUSTOMER.EMAIL;
+  IF duplicate_count &gt; 0 THEN
+    MESSAGE('Customer ID or email must be unique. [BR-001] [BR-004]');
+    RAISE FORM_TRIGGER_FAILURE;
+  END IF;
+END;
+      ]]></Source>
+    </Trigger>
+    <Trigger name="PRE-UPDATE" traceability="BR-006">
+      <Source><![CDATA[
+IF :CUSTOMER.CUSTOMER_ID IS NULL THEN
+  MESSAGE('Customer ID cannot be modified after creation. [BR-006]');
+  RAISE FORM_TRIGGER_FAILURE;
+END IF;
+      ]]></Source>
+    </Trigger>
+    <Trigger name="WHEN-NEW-RECORD-INSTANCE" traceability="BR-005 BR-006">
+      <Source><![CDATA[
+IF :SYSTEM.RECORD_STATUS = 'NEW' THEN
+  :CUSTOMER.ACTIVE := TRUE;
+  SET_ITEM_PROPERTY('CUSTOMER.CUSTOMER_ID', UPDATE_ALLOWED, PROPERTY_TRUE);
+ELSE
+  SET_ITEM_PROPERTY('CUSTOMER.CUSTOMER_ID', UPDATE_ALLOWED, PROPERTY_FALSE);
+END IF;
+      ]]></Source>
+    </Trigger>
+  </DataBlock>
+
+  <ControlBlock name="CUSTOMER_CONTROLS" canvas="CUSTOMER_CANVAS">
+    <Button name="CREATE_CUSTOMER" label="Create" action="CREATE" traceability="HP-001" />
+    <Button name="READ_CUSTOMER" label="Read" action="READ" traceability="HP-003 EC-005" />
+    <Button name="UPDATE_CUSTOMER" label="Update" action="UPDATE" traceability="HP-002 BR-006" />
+    <Button name="DELETE_CUSTOMER" label="Delete" action="DELETE" traceability="EC-005" />
+    <Button name="SEARCH_CUSTOMER" label="Search" action="SEARCH" traceability="HP-003" />
+    <Button name="CLEAR_SEARCH" label="Clear Search" action="CLEAR_SEARCH" traceability="HP-003" />
+
+    <Trigger name="WHEN-BUTTON-PRESSED" item="CREATE_CUSTOMER" traceability="HP-001 BR-005">
+      <Source><![CDATA[
+GO_BLOCK('CUSTOMER');
+CREATE_RECORD;
+:CUSTOMER.ACTIVE := TRUE;
+      ]]></Source>
+    </Trigger>
+    <Trigger name="WHEN-BUTTON-PRESSED" item="READ_CUSTOMER" traceability="HP-003 EC-005">
+      <Source><![CDATA[
+GO_BLOCK('CUSTOMER');
+EXECUTE_QUERY;
+IF :SYSTEM.LAST_RECORD = 'TRUE' AND :CUSTOMER.CUSTOMER_ID IS NULL THEN
+  MESSAGE('Customer was not found. [EC-005]');
+END IF;
+      ]]></Source>
+    </Trigger>
+    <Trigger name="WHEN-BUTTON-PRESSED" item="UPDATE_CUSTOMER" traceability="HP-002 BR-006">
+      <Source><![CDATA[
+GO_BLOCK('CUSTOMER');
+COMMIT_FORM;
+      ]]></Source>
+    </Trigger>
+    <Trigger name="WHEN-BUTTON-PRESSED" item="DELETE_CUSTOMER" traceability="EC-005">
+      <Source><![CDATA[
+GO_BLOCK('CUSTOMER');
+IF :CUSTOMER.CUSTOMER_ID IS NULL THEN
+  MESSAGE('Customer was not found. [EC-005]');
+  RAISE FORM_TRIGGER_FAILURE;
+END IF;
+DELETE_RECORD;
+COMMIT_FORM;
+      ]]></Source>
+    </Trigger>
+    <Trigger name="WHEN-BUTTON-PRESSED" item="SEARCH_CUSTOMER" traceability="HP-003">
+      <Source><![CDATA[
+GO_BLOCK('CUSTOMER');
+ENTER_QUERY;
+      ]]></Source>
+    </Trigger>
+    <Trigger name="WHEN-BUTTON-PRESSED" item="CLEAR_SEARCH" traceability="HP-003">
+      <Source><![CDATA[
+GO_BLOCK('CUSTOMER');
+CLEAR_BLOCK;
+      ]]></Source>
+    </Trigger>
+  </ControlBlock>
+
+  <ProgramUnit name="SEARCH_CUSTOMERS" traceability="HP-003">
+    <Description>Supports exact search for customer_id, name, email, city, and country; partial search for name, email, and city.</Description>
+    <Source><![CDATA[
+GO_BLOCK('CUSTOMER');
+ENTER_QUERY;
+-- Exact criteria: CUSTOMER_ID, NAME, EMAIL, CITY, COUNTRY.
+-- Partial criteria: NAME, EMAIL, CITY, entered with query wildcards.
+EXECUTE_QUERY;
+    ]]></Source>
+  </ProgramUnit>
+
+  <ProgramUnit name="VALIDATE_CUSTOMER" traceability="BR-001 BR-002 BR-003 BR-004 BR-005 BR-006 EC-001 EC-002 EC-003 EC-004">
+    <Source><![CDATA[
+VALIDATE_ITEM('CUSTOMER.NAME');
+VALIDATE_ITEM('CUSTOMER.EMAIL');
+VALIDATE_ITEM('CUSTOMER.CUSTOMER_ID');
+    ]]></Source>
+  </ProgramUnit>
+</FormModule>

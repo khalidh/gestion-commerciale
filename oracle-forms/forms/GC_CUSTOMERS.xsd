@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:forms="http://xmlns.oracle.com/Forms"
+           targetNamespace="http://xmlns.oracle.com/Forms"
+           elementFormDefault="qualified">
+  <xs:annotation>
+    <xs:documentation>
+      Structural validation for this project's GC_CUSTOMERS.xml module.
+      This is not the complete Oracle Forms XML schema.
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="Module" type="forms:ModuleType" />
+
+  <xs:complexType name="ModuleType">
+    <xs:sequence>
+      <xs:element name="FormModule" type="forms:FormModuleType" />
+    </xs:sequence>
+    <xs:attribute name="version" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="FormModuleType">
+    <xs:sequence>
+      <xs:element name="Coordinate" type="forms:AttributeContainerType" />
+      <xs:element name="Block" type="forms:BlockType" />
+      <xs:element name="Canvas" type="forms:CanvasType" />
+      <xs:element name="Window" type="forms:AttributeContainerType" />
+    </xs:sequence>
+    <xs:attribute name="Name" type="xs:string" use="required" />
+    <xs:attribute name="Title" type="xs:string" use="required" />
+    <xs:attribute name="DirtyInfo" type="xs:boolean" />
+    <xs:attribute name="ConsoleWindow" type="xs:string" />
+    <xs:attribute name="MenuModule" type="xs:string" />
+  </xs:complexType>
+
+  <xs:complexType name="BlockType">
+    <xs:sequence>
+      <xs:element name="Item" type="forms:ItemType" minOccurs="1" maxOccurs="unbounded" />
+      <xs:element name="DataSourceColumn" type="forms:DataSourceColumnType" minOccurs="1" maxOccurs="unbounded" />
+      <xs:element name="Trigger" type="forms:TriggerType" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="Name" type="xs:string" use="required" />
+    <xs:attribute name="QueryDataSourceName" type="xs:string" use="required" />
+    <xs:attribute name="DirtyInfo" type="xs:boolean" />
+    <xs:anyAttribute processContents="lax" />
+  </xs:complexType>
+
+  <xs:complexType name="ItemType">
+    <xs:sequence>
+      <xs:element name="Trigger" type="forms:TriggerType" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="Name" type="xs:string" use="required" />
+    <xs:attribute name="ItemType" type="xs:string" use="required" />
+    <xs:anyAttribute processContents="lax" />
+  </xs:complexType>
+
+  <xs:complexType name="TriggerType" mixed="true">
+    <xs:anyAttribute processContents="lax" />
+  </xs:complexType>
+
+  <xs:complexType name="DataSourceColumnType">
+    <xs:attribute name="DSCName" type="xs:string" use="required" />
+    <xs:attribute name="DSCType" type="xs:string" use="required" />
+    <xs:anyAttribute processContents="lax" />
+  </xs:complexType>
+
+  <xs:complexType name="CanvasType">
+    <xs:sequence>
+      <xs:element name="Graphics" type="forms:AttributeContainerType" minOccurs="1" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="Name" type="xs:string" use="required" />
+    <xs:attribute name="WindowName" type="xs:string" use="required" />
+    <xs:anyAttribute processContents="lax" />
+  </xs:complexType>
+
+  <xs:complexType name="AttributeContainerType">
+    <xs:anyAttribute processContents="lax" />
+  </xs:complexType>
+</xs:schema>
